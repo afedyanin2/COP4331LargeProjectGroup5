@@ -8,8 +8,7 @@ const rateLimit = require('express-rate-limit'); // for rate limiting requests
 
 // Connect to MongoDB
 const url = process.env.MONGODB_URI;
-const client = new MongoClient(url); 
-client.connect();
+const client = new MongoClient(url);
 
 // Set up Express server
 const express = require('express');
@@ -675,4 +674,17 @@ app.delete('/api/notes/:id', authenticateToken, async (req, res) =>
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+
+// Connect to MongoDB and start the server
+// server only starts after MongoDB confirms its connected
+client.connect()
+    .then(() =>
+    {
+        console.log('MongoDB connected successfully');
+        app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+    })
+    .catch((err) =>
+    {
+        console.error('MongoDB connection failed at startup:', err);
+        process.exit(1); // fail fast and loud instead of running with a dead DB connection
+    });
