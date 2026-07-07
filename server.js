@@ -3,7 +3,6 @@ require('dotenv').config(); // load environment variables from .env file
 const bcrypt = require('bcrypt'); // for password hashing
 const crypto = require('crypto'); // for generating random tokens
 const jwt = require('jsonwebtoken'); // for JWT authentication
-const nodemailer = require('nodemailer'); // for sending emails
 const rateLimit = require('express-rate-limit'); // for rate limiting requests
 
 // Connect to MongoDB
@@ -33,16 +32,15 @@ if (!JWT_SECRET)
     console.warn('WARNING: JWT_SECRET is not set. Set it in your .env file before running in production.');
 }
 
-// Set up nodemailer transporter for sending emails
-const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT) || 587, // default to 587 if not specified
-    secure: process.env.EMAIL_SECURE === 'true', // true for port 465
-    auth: { // authentication for email server
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+// Emails are sent via Resend's HTTP API (not SMTP) - see sendMail() below.
+// This avoids DigitalOcean's default outbound SMTP port block on 465/587.
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+
+if (!RESEND_API_KEY)
+{
+    console.warn('WARNING: RESEND_API_KEY is not set. Emails will fail to send.');
+}
 
 //------- helper functions
 
@@ -58,15 +56,28 @@ function signJwt(user)
     return jwt.sign({ userId: user._id.toString() }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
-// Sends an email using the configured nodemailer transporter
+// Sends an email using the Resend API. Throws an error if the request fails.
 async function sendMail(to, subject, html)
 {
-    await transporter.sendMail({
-        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-        to,
-        subject,
-        html
+    const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            from: EMAIL_FROM,
+            to,
+            subject,
+            html
+        })
     });
+
+    if (!response.ok)
+    {
+        const errorBody = await response.text();
+        throw new Error(`Resend API error (${response.status}): ${errorBody}`);
+    }
 }
 
 // ---------- rate limiters ----------
