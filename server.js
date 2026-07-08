@@ -22,7 +22,7 @@ app.use(bodyParser.json());
 const SALT_ROUNDS = 12; // bcrypt salt rounds for password hashing
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;   // email verification token expires in 24 hours
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;         // password reset token expires in 1 hour
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'; // URL of the frontend application for email links
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5000'; // URL of the frontend application for email links
 const JWT_SECRET = process.env.JWT_SECRET; // secret key for signing JWTs
 const JWT_EXPIRES_IN = '7d'; // JWT expiration time (7 days)
 
