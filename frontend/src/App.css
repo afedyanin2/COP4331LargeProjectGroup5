@@ -194,3 +194,17 @@ button:hover {
     align-items: flex-start;
   }
 }
+
+/* Makes the six-digit code easier to read. */
+.verification-code-input {
+  font-size: 1.5rem;
+  font-weight: bold;
+  letter-spacing: 0.5rem;
+  text-align: center;
+}
+
+/* Used after verification or requesting a new code. */
+.success-message {
+  color: green;
+  font-weight: bold;
+}
