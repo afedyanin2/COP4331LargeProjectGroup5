@@ -84,9 +84,9 @@
 .button-link {
   display: inline-block;
   padding: 10px 16px;
-  border: 1px solid #3AA675;
+  border: 1px solid #E9F5EE;
   background: #F6FAF7;
-  color: #1A2B22;
+  color: #3AA675;
   text-decoration: none;
 }
 
@@ -97,7 +97,7 @@
 .content-section {
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid #3AA675;
+  border-top: 1px solid #cccccc;
 }
 
 .basic-form {
@@ -116,7 +116,7 @@
 .basic-form textarea {
   width: 100%;
   padding: 10px;
-  border: 1px solid #222222;
+  border: 1px solid #E9F5EE;
   border-radius: 0;
   font: inherit;
 }
@@ -132,9 +132,9 @@
 
 button {
   padding: 10px 16px;
-  border: 1px solid #222222;
-  background: #222222;
-  color: #ffffff;
+  border: 1px solid #E9F5EE;
+  background: #F6FAF7;
+  color: #3AA675;
   cursor: pointer;
   font: inherit;
 }
@@ -145,14 +145,14 @@ button:hover {
 
 .error-message {
   padding: 10px;
-  border: 1px solid #a00000;
-  color: #a00000;
+  border: 1px solid #E9F5EE;
+  color: #E74C3C;
 }
 
 .success-message {
   padding: 10px;
-  border: 1px solid #166534;
-  color: #166534;
+  border: 1px solid #E9F5EE;
+  color: #52C41A;
 }
 
 .notes-list {
@@ -162,7 +162,7 @@ button:hover {
 
 .note-card {
   padding: 16px;
-  border: 1px solid #cccccc;
+  border: 1px solid #E9F5EE;
 }
 
 .note-card h3 {
@@ -174,13 +174,13 @@ button:hover {
 }
 
 .delete-button {
-  background: #ffffff;
-  color: #222222;
+  background: #F6FAF7;
+  color: #3AA675;
 }
 
 .footer {
   padding: 20px;
-  border-top: 1px solid #cccccc;
+  border-top: 1px solid #E9F5EE;
   text-align: center;
 }
 
