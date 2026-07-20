@@ -5,11 +5,12 @@ function LoginPage({ isLoggedIn, onLogin }) {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
   });
 
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (isLoggedIn) {
     return <Navigate to="/" replace />;
@@ -24,18 +25,89 @@ function LoginPage({ isLoggedIn, onLogin }) {
     }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     setError('');
 
-    if (!formData.email.trim() || !formData.password.trim()) {
-      setError('Please enter your email and password.');
+    if (
+      !formData.username.trim() ||
+      !formData.password
+    ) {
+      setError(
+        'Please enter your username and password.'
+      );
       return;
     }
 
-    // Replace this with a backend API request later.
-    onLogin(formData.email.trim());
-    navigate('/');
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json',
+        },
+
+        body: JSON.stringify({
+          username: formData.username.trim(),
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(
+          data.error || 'Unable to log in.'
+        );
+      }
+
+      localStorage.setItem(
+        'noterietyToken',
+        data.token
+      );
+
+      localStorage.setItem(
+        'noterietyUserName',
+        data.username
+      );
+
+      localStorage.setItem(
+        'noterietyUserEmail',
+        data.email || ''
+      );
+
+      localStorage.setItem(
+        'noterietyFirstName',
+        data.firstName || ''
+      );
+
+      localStorage.setItem(
+        'noterietyLastName',
+        data.lastName || ''
+      );
+
+      localStorage.setItem(
+        'noterietyEmailVerified',
+        String(data.emailVerified)
+      );
+
+      onLogin(data.username);
+      navigate('/');
+    } catch (requestError) {
+      console.error(
+        'Login request failed:',
+        requestError
+      );
+
+      setError(
+        requestError.message ||
+          'Unable to log in.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -45,14 +117,18 @@ function LoginPage({ isLoggedIn, onLogin }) {
       <form className="basic-form" onSubmit={handleSubmit}>
         {error && <p className="error-message">{error}</p>}
 
-        <label htmlFor="login-email">Email</label>
+        <label htmlFor="login-username">
+          Username
+        </label>
+
         <input
-          id="login-email"
-          name="email"
-          type="email"
-          value={formData.email}
+          id="login-username"
+          name="username"
+          type="text"
+          value={formData.username}
           onChange={handleChange}
-          autoComplete="email"
+          autoComplete="username"
+          required
         />
 
         <label htmlFor="login-password">Password</label>
@@ -65,7 +141,14 @@ function LoginPage({ isLoggedIn, onLogin }) {
           autoComplete="current-password"
         />
 
-        <button type="submit">Log In</button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting
+            ? 'Logging In...'
+            : 'Log In'}
+        </button>
       </form>
 
       <p>

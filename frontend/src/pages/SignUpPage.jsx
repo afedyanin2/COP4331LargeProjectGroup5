@@ -12,6 +12,7 @@ function SignupPage({ isLoggedIn }) {
   });
 
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (isLoggedIn) {
     return <Navigate to="/" replace />;
@@ -26,11 +27,16 @@ function SignupPage({ isLoggedIn }) {
     }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     setError('');
 
-    const { name, email, password, confirmPassword } = formData;
+    const {
+      name,
+      email,
+      password,
+      confirmPassword,
+    } = formData;
 
     if (
       !name.trim() ||
@@ -47,11 +53,71 @@ function SignupPage({ isLoggedIn }) {
       return;
     }
 
-    // Replace these values with a backend signup request later.
-    localStorage.setItem('noterietyUserName', name.trim());
-    localStorage.setItem('noterietyUserEmail', email.trim());
+    setIsSubmitting(true);
 
-    navigate('/confirm-email');
+    try {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json',
+        },
+
+        body: JSON.stringify({
+          username: name.trim(),
+          password,
+          firstName: '',
+          lastName: '',
+          email: email.trim().toLowerCase(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(
+          data.error || 'Unable to create account.'
+        );
+      }
+
+      localStorage.setItem(
+        'noterietyToken',
+        data.token
+      );
+
+      localStorage.setItem(
+        'noterietyUserName',
+        data.username
+      );
+
+      localStorage.setItem(
+        'noterietyUserEmail',
+        data.email
+      );
+
+      localStorage.setItem(
+        'noterietyEmailVerified',
+        String(data.emailVerified)
+      );
+
+      navigate('/confirm-email', {
+        state: {
+          email: data.email,
+        },
+      });
+    } catch (requestError) {
+      console.error(
+        'Signup request failed:',
+        requestError
+      );
+
+      setError(
+        requestError.message ||
+          'Unable to create account.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -101,7 +167,14 @@ function SignupPage({ isLoggedIn }) {
           autoComplete="new-password"
         />
 
-        <button type="submit">Sign Up</button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting
+            ? 'Creating Account...'
+            : 'Sign Up'}
+        </button>
       </form>
 
       <p>
