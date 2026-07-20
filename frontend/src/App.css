@@ -6,7 +6,7 @@
 
 .navbar {
   border-bottom: 1px solid #cccccc;
-  background: #ffffff;
+  background: #F6FAF7;
 }
 
 .navbar-inner {
@@ -21,7 +21,7 @@
 }
 
 .site-name {
-  color: #111111;
+  color: #1A2B22;
   font-size: 1.4rem;
   font-weight: bold;
   text-decoration: none;
@@ -35,7 +35,7 @@
 }
 
 .nav-link {
-  color: #333333;
+  color: #38765F;
   text-decoration: none;
 }
 
@@ -84,20 +84,20 @@
 .button-link {
   display: inline-block;
   padding: 10px 16px;
-  border: 1px solid #222222;
-  background: #222222;
-  color: #ffffff;
+  border: 1px solid #3AA675;
+  background: #F6FAF7;
+  color: #1A2B22;
   text-decoration: none;
 }
 
 .secondary-link {
-  color: #222222;
+  color: #3AA675;
 }
 
 .content-section {
   margin-top: 32px;
   padding-top: 24px;
-  border-top: 1px solid #cccccc;
+  border-top: 1px solid #3AA675;
 }
 
 .basic-form {
@@ -116,7 +116,7 @@
 .basic-form textarea {
   width: 100%;
   padding: 10px;
-  border: 1px solid #999999;
+  border: 1px solid #222222;
   border-radius: 0;
   font: inherit;
 }
