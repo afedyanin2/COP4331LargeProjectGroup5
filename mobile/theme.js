@@ -1,7 +1,3 @@
-// theme.js — Noteriety mobile theming foundation
-// Single source of truth for color + light/dark switching.
-// Screens consume semantic names (colors.primary), never raw hex.
-
 import React, {
   createContext,
   useContext,
@@ -10,11 +6,6 @@ import React, {
   useCallback,
 } from 'react';
 import { useColorScheme } from 'react-native';
-
-// 1. Palettes ----------------------------------------------------------
-// Same keys in both maps — that symmetry is what lets the toggle just
-// swap one object for the other. Every screen reads these keys, so
-// adding a token later means adding it here once, in both maps.
 
 const light = {
   background: '#F6FAF7',
@@ -45,10 +36,6 @@ const dark = {
 };
 
 export const palettes = { light, dark };
-
-// 2. Context -----------------------------------------------------------
-// override is one of: 'system' | 'light' | 'dark'
-// 'system' follows the OS; the other two force a mode.
 
 const ThemeContext = createContext({
   colors: light,
@@ -83,22 +70,4 @@ export function ThemeProvider({ children, initial = 'system' }) {
   );
 }
 
-// 3. Hook --------------------------------------------------------------
 export const useTheme = () => useContext(ThemeContext);
-
-// 4. How screens use it ------------------------------------------------
-//
-// Wrap the app root once:
-//   <ThemeProvider><RootNavigator /></ThemeProvider>
-//
-// A primary button (this is why onPrimary exists — never hardcode the
-// label color, or it breaks in one of the two modes):
-//   const { colors } = useTheme();
-//   <Pressable style={{ backgroundColor: colors.primary }}>
-//     <Text style={{ color: colors.onPrimary }}>Log in</Text>
-//   </Pressable>
-//
-// The Settings dark-mode row:
-//   const { isDark, mode, setMode, toggle } = useTheme();
-//   <Switch value={isDark} onValueChange={toggle} />
-//   // or a 3-way control: setMode('system' | 'light' | 'dark')
