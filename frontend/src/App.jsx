@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
 import Navbar from './components/Navigationbar';
@@ -19,6 +19,21 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(
     () => localStorage.getItem('noterietyLoggedIn') === 'true'
   );
+
+ const [theme, setTheme] = useState(
+  () => localStorage.getItem('noterietyTheme') || 'light'
+);
+
+useEffect(() => {
+  document.documentElement.dataset.theme = theme;
+}, [theme]);
+
+function handleThemeChange(newTheme) {
+  const safeTheme = newTheme === 'dark' ? 'dark' : 'light';
+
+  setTheme(safeTheme);
+  localStorage.setItem('noterietyTheme', safeTheme);
+}
 
   function handleLogin(email) {
     localStorage.setItem('noterietyLoggedIn', 'true');
@@ -83,7 +98,7 @@ function App() {
             path="/settings"
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn}>
-                <SettingsPage onLogout={handleLogout} />
+                <SettingsPage onLogout={handleLogout} theme={theme} onThemeChange={handleThemeChange} />
               </ProtectedRoute>
             }
           />
