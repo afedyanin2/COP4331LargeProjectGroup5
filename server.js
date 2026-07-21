@@ -60,11 +60,7 @@ if (!RESEND_API_KEY) {
 // -----------------------------------------------------------------------------
 
 const SALT_ROUNDS = 12;
-// Verification uses a six-digit code
-const VERIFY_CODE_TTL_MS = 10 * 60 * 1000;
-// Prevents unlimited guessing of the six-digit code
-// Requesting a new code resets counter
-const MAX_VERIFICATION_ATTEMPTS = 5;
+const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const JWT_EXPIRES_IN = '7d';
 const MIN_PASSWORD_LENGTH = 8;
@@ -121,29 +117,6 @@ function getDatabase() {
 
 function generateToken() {
   return crypto.randomBytes(32).toString('hex');
-}
-
-//Creates a secure number between 100000 and 999999.
-function generateVerificationCode() {
-  return crypto.randomInt(100000,1000000).toString();
-}
-
-
-// Stores a hash of the verification code instead of storing the readable code in MongoDB
-function hashVerificationCode(code) {
-  return crypto.createHmac('sha256',JWT_SECRET).update(String(code)).digest('hex');
-}
-
-// Uses timingSafeEqual to reduce timing-based comparisons
-function verificationHashesMatch(storedHash, submittedHash) {
-  if (!storedHash || !submittedHash) {
-    return false;
-  }
-
-  const storedBuffer = Buffer.from(storedHash, 'hex');
-  const submittedBuffer = Buffer.from(submittedHash, 'hex');
-
-  return (storedBuffer.length === submittedBuffer.length && crypto.timingSafeEqual(storedBuffer, submittedBuffer));
 }
 
 function signJwt(userId) {
@@ -300,25 +273,6 @@ const resendVerificationLimiter = rateLimit({
   },
 });
 
-// Limits repeated code guesses sent to the API
-const verifyEmailLimiter =
-  rateLimit({
-    windowMs:
-      15 * 60 * 1000,
-
-    max: 10,
-
-    standardHeaders: true,
-    legacyHeaders: false,
-
-    message: {
-      emailVerified: false,
-
-      error:
-        'Too many verification attempts. Please try again later.',
-    },
-  });
-
 // -----------------------------------------------------------------------------
 // Health route
 // -----------------------------------------------------------------------------
@@ -340,26 +294,22 @@ app.post(
   '/api/login',
   loginLimiter,
   async (req, res) => {
-    const username =
-      normalizeUsername(
-        req.body.username
-      );
+    const username = normalizeUsername(
+      req.body.username
+    );
 
     const password = String(
       req.body.password || ''
     );
 
     if (!username || !password) {
-      return res
-        .status(200)
-        .json({
-          id: -1,
-          firstName: '',
-          lastName: '',
-
-          error:
-            'Username and password are required',
-        });
+      return res.status(200).json({
+        id: -1,
+        firstName: '',
+        lastName: '',
+        error:
+          'Username and password are required',
+      });
     }
 
     try {
@@ -372,16 +322,13 @@ app.post(
         });
 
       if (!user) {
-        return res
-          .status(200)
-          .json({
-            id: -1,
-            firstName: '',
-            lastName: '',
-
-            error:
-              'Invalid username or password',
-          });
+        return res.status(200).json({
+          id: -1,
+          firstName: '',
+          lastName: '',
+          error:
+            'Invalid username or password',
+        });
       }
 
       const passwordMatches =
@@ -391,101 +338,39 @@ app.post(
         );
 
       if (!passwordMatches) {
-        return res
-          .status(200)
-          .json({
-            id: -1,
-            firstName: '',
-            lastName: '',
-
-            error:
-              'Invalid username or password',
-          });
-      }
-
-      /*
-       * CHANGED:
-       * Correct passwords no longer allow login
-       * when the email is unverified.
-       *
-       * The frontend uses this value to redirect
-       * to /confirm-email.
-       */
-      if (!user.emailVerified) {
-        return res
-          .status(200)
-          .json({
-            id:
-              user._id.toString(),
-
-            firstName:
-              user.firstName || '',
-
-            lastName:
-              user.lastName || '',
-
-            username:
-              user.username,
-
-            email:
-              user.email || '',
-
-            emailVerified: false,
-
-            requiresEmailVerification:
-              true,
-
-            error: '',
-          });
-      }
-
-      /*
-       * Only verified users receive a JWT.
-       */
-      const token =
-        signJwt(user._id);
-
-      return res
-        .status(200)
-        .json({
-          id:
-            user._id.toString(),
-
-          firstName:
-            user.firstName || '',
-
-          lastName:
-            user.lastName || '',
-
-          username:
-            user.username,
-
-          email:
-            user.email || '',
-
-          emailVerified: Boolean(
-            user.emailVerified
-          ),
-
-          token,
-          error: '',
-        });
-    } catch (error) {
-      console.error(
-        'Login error:',
-        error
-      );
-
-      return res
-        .status(500)
-        .json({
+        return res.status(200).json({
           id: -1,
           firstName: '',
           lastName: '',
-
           error:
-            'Unable to log in right now',
+            'Invalid username or password',
         });
+      }
+
+      const token = signJwt(user._id);
+
+      return res.status(200).json({
+        id: user._id.toString(),
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        username: user.username,
+        email: user.email || '',
+        emailVerified: Boolean(
+          user.emailVerified
+        ),
+        token,
+        error: '',
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+
+      return res.status(500).json({
+        id: -1,
+        firstName: '',
+        lastName: '',
+        error:
+          'Unable to log in right now',
+      });
     }
   }
 );
@@ -498,10 +383,9 @@ app.post(
   '/api/register',
   registerLimiter,
   async (req, res) => {
-    const username =
-      normalizeUsername(
-        req.body.username
-      );
+    const username = normalizeUsername(
+      req.body.username
+    );
 
     const password = String(
       req.body.password || ''
@@ -515,72 +399,57 @@ app.post(
       req.body.lastName || ''
     ).trim();
 
-    const email =
-      normalizeEmail(
-        req.body.email
-      );
+    const email = normalizeEmail(
+      req.body.email
+    );
 
-    if (
-      !username ||
-      !password ||
-      !email
-    ) {
-      return res
-        .status(200)
-        .json({
-          id: -1,
-          firstName: '',
-          lastName: '',
-
-          error:
-            'Username, password, and email are required',
-        });
+    if (!username || !password || !email) {
+      return res.status(200).json({
+        id: -1,
+        firstName: '',
+        lastName: '',
+        error:
+          'Username, password, and email are required',
+      });
     }
 
     if (
       password.length <
       MIN_PASSWORD_LENGTH
     ) {
-      return res
-        .status(200)
-        .json({
-          id: -1,
-          firstName: '',
-          lastName: '',
-
-          error:
-            `Password must contain at least ${MIN_PASSWORD_LENGTH} characters`,
-        });
+      return res.status(200).json({
+        id: -1,
+        firstName: '',
+        lastName: '',
+        error:
+          `Password must contain at least ${MIN_PASSWORD_LENGTH} characters`,
+      });
     }
 
     try {
       const db = getDatabase();
 
-      const existingUser =
-        await db
-          .collection('Users')
-          .findOne({
-            $or: [
-              {
-                username,
-              },
-              {
-                email,
-              },
-            ],
-          });
+      const existingUser = await db
+        .collection('Users')
+        .findOne({
+          $or: [
+            {
+              username,
+            },
+            {
+              email,
+            },
+          ],
+        });
 
       if (existingUser) {
-        return res
-          .status(200)
-          .json({
-            id: -1,
-            firstName: '',
-            lastName: '',
-
-            error:
-              'Username or email already in use',
-          });
+        return res.status(200).json({
+          id: -1,
+          firstName: '',
+          lastName: '',
+          error:
+            'Username or email already in use',
+        });
       }
 
       const hashedPassword =
@@ -589,220 +458,120 @@ app.post(
           SALT_ROUNDS
         );
 
-      /*
-       * CHANGED:
-       * Create a six-digit code instead of
-       * a long link token.
-       */
-      const verificationCode =
-        generateVerificationCode();
+      const verificationToken =
+        generateToken();
 
-      /*
-       * Only the hash is stored in MongoDB.
-       */
-      const verificationCodeHash =
-        hashVerificationCode(
-          verificationCode
-        );
-
-      const verificationCodeExpiry =
+      const verificationTokenExpiry =
         new Date(
           Date.now() +
-            VERIFY_CODE_TTL_MS
+            VERIFY_TOKEN_TTL_MS
         );
 
       const result = await db
         .collection('Users')
         .insertOne({
           username,
-
-          password:
-            hashedPassword,
-
+          password: hashedPassword,
           firstName,
           lastName,
           email,
-
           emailVerified: false,
-
-          verificationCodeHash,
-          verificationCodeExpiry,
-
-          /*
-           * Tracks incorrect code guesses.
-           */
-          verificationCodeAttempts:
-            0,
-
+          verificationToken,
+          verificationTokenExpiry,
           resetToken: null,
           resetTokenExpiry: null,
-
-          createdAt:
-            new Date(),
-
-          updatedAt:
-            new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
 
-      let verificationEmailSent =
-        true;
+      const verifyLink =
+        `${FRONTEND_URL}/verify-email` +
+        `?token=${encodeURIComponent(
+          verificationToken
+        )}`;
 
       try {
-        /*
-         * CHANGED:
-         * The email contains the numeric code
-         * instead of a clickable verification URL.
-         */
         await sendMail(
           email,
-
-          'Your Noteriety verification code',
-
+          'Verify your Noteriety email',
           `
-            <div
-              style="
-                font-family: Arial, sans-serif;
-                max-width: 500px;
-                margin: 0 auto;
-              "
-            >
-              <h2>
-                Verify your Noteriety email
-              </h2>
+            <p>Hi ${firstName || username},</p>
 
-              <p>
-                Hi ${
-                  firstName ||
-                  username
-                },
-              </p>
+            <p>
+              Thanks for signing up for
+              Noteriety.
+            </p>
 
-              <p>
-                Enter this six-digit
-                verification code on
-                Noteriety:
-              </p>
+            <p>
+              Please verify your email by
+              clicking the link below:
+            </p>
 
-              <div
-                style="
-                  font-size: 32px;
-                  font-weight: bold;
-                  letter-spacing: 8px;
-                  text-align: center;
-                  margin: 30px 0;
-                  padding: 18px;
-                  background: #f3f3f3;
-                  border-radius: 8px;
-                "
-              >
-                ${verificationCode}
-              </div>
+            <p>
+              <a href="${verifyLink}">
+                ${verifyLink}
+              </a>
+            </p>
 
-              <p>
-                This code expires in
-                10 minutes.
-              </p>
-
-              <p>
-                If you did not create
-                this account, you can
-                ignore this email.
-              </p>
-            </div>
+            <p>
+              This link expires in 24 hours.
+            </p>
           `
         );
       } catch (mailError) {
-        verificationEmailSent =
-          false;
-
         console.error(
-          'Failed to send verification code:',
+          'Failed to send verification email:',
           mailError.message
         );
       }
 
-      /*
-       * CHANGED:
-       * Registration does not return a JWT.
-       * The user must verify the email and then log in.
-       */
-      return res
-        .status(200)
-        .json({
-          id:
-            result.insertedId
-              .toString(),
+      const token = signJwt(
+        result.insertedId
+      );
 
-          firstName,
-          lastName,
-          username,
-          email,
-
-          emailVerified: false,
-
-          requiresEmailVerification:
-            true,
-
-          verificationEmailSent,
-
-          error: '',
-        });
+      return res.status(200).json({
+        id: result.insertedId.toString(),
+        firstName,
+        lastName,
+        username,
+        email,
+        emailVerified: false,
+        token,
+        error: '',
+      });
     } catch (error) {
       console.error(
         'Registration error:',
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          id: -1,
-          firstName: '',
-          lastName: '',
-
-          error:
-            'Unable to register right now',
-        });
+      return res.status(500).json({
+        id: -1,
+        firstName: '',
+        lastName: '',
+        error:
+          'Unable to register right now',
+      });
     }
   }
 );
 
 // -----------------------------------------------------------------------------
-// Verify email using a six-digit code
+// Verify email
 // -----------------------------------------------------------------------------
 
-app.post(
-  '/api/verify-email-code',
-  verifyEmailLimiter,
+app.get(
+  '/api/verify-email',
   async (req, res) => {
-    const email =
-      normalizeEmail(
-        req.body.email
-      );
-
-    const code = String(
-      req.body.code || ''
+    const token = String(
+      req.query.token || ''
     ).trim();
 
-    if (!email) {
-      return res
-        .status(200)
-        .json({
-          emailVerified: false,
-          error:
-            'Email is required',
-        });
-    }
-
-    if (!/^\d{6}$/.test(code)) {
-      return res
-        .status(200)
-        .json({
-          emailVerified: false,
-
-          error:
-            'Enter the six-digit verification code',
-        });
+    if (!token) {
+      return res.status(200).json({
+        error:
+          'Missing verification token',
+      });
     }
 
     try {
@@ -811,130 +580,28 @@ app.post(
       const user = await db
         .collection('Users')
         .findOne({
-          email,
+          verificationToken: token,
         });
 
-      /*
-       * Use the same message when the account
-       * or code is invalid.
-       */
       if (!user) {
-        return res
-          .status(200)
-          .json({
-            emailVerified: false,
-
-            error:
-              'Invalid verification code',
-          });
-      }
-
-      if (user.emailVerified) {
-        return res
-          .status(200)
-          .json({
-            emailVerified: true,
-            error: '',
-          });
-      }
-
-      const attempts =
-        Number(
-          user.verificationCodeAttempts
-        ) || 0;
-
-      if (
-        attempts >=
-        MAX_VERIFICATION_ATTEMPTS
-      ) {
-        return res
-          .status(200)
-          .json({
-            emailVerified: false,
-
-            error:
-              'Too many incorrect attempts. Request a new code.',
-          });
+        return res.status(200).json({
+          error:
+            'Invalid or expired verification link',
+        });
       }
 
       if (
-        !user.verificationCodeHash ||
-        !user.verificationCodeExpiry
-      ) {
-        return res
-          .status(200)
-          .json({
-            emailVerified: false,
-
-            error:
-              'No active verification code. Request a new code.',
-          });
-      }
-
-      if (
+        !user.verificationTokenExpiry ||
         new Date(
-          user.verificationCodeExpiry
+          user.verificationTokenExpiry
         ) < new Date()
       ) {
-        return res
-          .status(200)
-          .json({
-            emailVerified: false,
-
-            error:
-              'The verification code has expired. Request a new code.',
-          });
+        return res.status(200).json({
+          error:
+            'Verification link has expired',
+        });
       }
 
-      const submittedHash =
-        hashVerificationCode(
-          code
-        );
-
-      const codeMatches =
-        verificationHashesMatch(
-          user.verificationCodeHash,
-          submittedHash
-        );
-
-      if (!codeMatches) {
-        /*
-         * Add one to the failed-attempt count.
-         */
-        await db
-          .collection('Users')
-          .updateOne(
-            {
-              _id: user._id,
-            },
-            {
-              $inc: {
-                verificationCodeAttempts:
-                  1,
-              },
-
-              $set: {
-                updatedAt:
-                  new Date(),
-              },
-            }
-          );
-
-        return res
-          .status(200)
-          .json({
-            emailVerified: false,
-
-            error:
-              'Invalid verification code',
-          });
-      }
-
-      /*
-       * Correct code:
-       * mark the account verified and delete all
-       * verification data from the user record.
-       */
       await db
         .collection('Users')
         .updateOne(
@@ -944,78 +611,49 @@ app.post(
           {
             $set: {
               emailVerified: true,
-
-              updatedAt:
-                new Date(),
+              updatedAt: new Date(),
             },
 
             $unset: {
-              verificationCodeHash:
-                '',
-
-              verificationCodeExpiry:
-                '',
-
-              verificationCodeAttempts:
-                '',
-
-              /*
-               * Also remove fields created by
-               * the old link-based system.
-               */
-              verificationToken:
-                '',
-
-              verificationTokenExpiry:
-                '',
+              verificationToken: '',
+              verificationTokenExpiry: '',
             },
           }
         );
 
-      return res
-        .status(200)
-        .json({
-          emailVerified: true,
-          error: '',
-        });
+      return res.status(200).json({
+        error: '',
+      });
     } catch (error) {
       console.error(
-        'Email code verification error:',
+        'Email verification error:',
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          emailVerified: false,
-
-          error:
-            'Unable to verify email right now',
-        });
+      return res.status(500).json({
+        error:
+          'Unable to verify email right now',
+      });
     }
   }
 );
 
 // -----------------------------------------------------------------------------
-// Resend verification code
+// Resend verification email
 // -----------------------------------------------------------------------------
 
 app.post(
   '/api/resend-verification',
   resendVerificationLimiter,
   async (req, res) => {
-    const email =
-      normalizeEmail(
-        req.body.email
-      );
+    const email = normalizeEmail(
+      req.body.email
+    );
 
     if (!email) {
-      return res
-        .status(200)
-        .json({
-          error:
-            'Email is required',
-        });
+      return res.status(200).json({
+        error: 'Email is required',
+      });
     }
 
     try {
@@ -1027,34 +665,21 @@ app.post(
           email,
         });
 
-      /*
-       * The response remains generic so this
-       * endpoint does not reveal whether an
-       * email has an account.
-       */
+      // Always returns success so account
+      // existence is not exposed.
       if (
         user &&
         !user.emailVerified
       ) {
-        const verificationCode =
-          generateVerificationCode();
+        const verificationToken =
+          generateToken();
 
-        const verificationCodeHash =
-          hashVerificationCode(
-            verificationCode
-          );
-
-        const verificationCodeExpiry =
+        const verificationTokenExpiry =
           new Date(
             Date.now() +
-              VERIFY_CODE_TTL_MS
+              VERIFY_TOKEN_TTL_MS
           );
 
-        /*
-         * The new code replaces the old code,
-         * resets the expiration, and resets
-         * incorrect attempts.
-         */
         await db
           .collection('Users')
           .updateOne(
@@ -1063,104 +688,69 @@ app.post(
             },
             {
               $set: {
-                verificationCodeHash,
-
-                verificationCodeExpiry,
-
-                verificationCodeAttempts:
-                  0,
-
-                updatedAt:
-                  new Date(),
-              },
-
-              $unset: {
-                verificationToken:
-                  '',
-
-                verificationTokenExpiry:
-                  '',
+                verificationToken,
+                verificationTokenExpiry,
+                updatedAt: new Date(),
               },
             }
           );
 
+        const verifyLink =
+          `${FRONTEND_URL}/verify-email` +
+          `?token=${encodeURIComponent(
+            verificationToken
+          )}`;
+
         try {
           await sendMail(
             email,
-
-            'Your new Noteriety verification code',
-
+            'Verify your Noteriety email',
             `
-              <div
-                style="
-                  font-family: Arial, sans-serif;
-                  max-width: 500px;
-                  margin: 0 auto;
-                "
-              >
-                <h2>
-                  Your new verification code
-                </h2>
+              <p>
+                Hi ${
+                  user.firstName ||
+                  user.username
+                },
+              </p>
 
-                <p>
-                  Hi ${
-                    user.firstName ||
-                    user.username
-                  },
-                </p>
+              <p>
+                Here is a new verification
+                link:
+              </p>
 
-                <p>
-                  Enter this six-digit
-                  code on Noteriety:
-                </p>
+              <p>
+                <a href="${verifyLink}">
+                  ${verifyLink}
+                </a>
+              </p>
 
-                <div
-                  style="
-                    font-size: 32px;
-                    font-weight: bold;
-                    letter-spacing: 8px;
-                    text-align: center;
-                    margin: 30px 0;
-                    padding: 18px;
-                    background: #f3f3f3;
-                    border-radius: 8px;
-                  "
-                >
-                  ${verificationCode}
-                </div>
-
-                <p>
-                  This code expires in
-                  10 minutes.
-                </p>
-              </div>
+              <p>
+                This link expires in 24
+                hours.
+              </p>
             `
           );
         } catch (mailError) {
           console.error(
-            'Failed to resend verification code:',
+            'Failed to resend verification email:',
             mailError.message
           );
         }
       }
 
-      return res
-        .status(200)
-        .json({
-          error: '',
-        });
+      return res.status(200).json({
+        error: '',
+      });
     } catch (error) {
       console.error(
         'Resend verification error:',
         error
       );
 
-      return res
-        .status(500)
-        .json({
-          error:
-            'Unable to resend the verification code right now',
-        });
+      return res.status(500).json({
+        error:
+          'Unable to resend the verification email right now',
+      });
     }
   }
 );

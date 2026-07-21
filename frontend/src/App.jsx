@@ -12,6 +12,7 @@ import NoteTakingPage from './pages/NoteTakingPage';
 import NotFoundPage from './pages/NotFoundPage';
 import SettingsPage from './pages/SettingsPage';
 import SignupPage from './pages/SignUpPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 
 import './App.css';
 
@@ -68,6 +69,11 @@ function App() {
           <Route
             path="/confirm-email"
             element={<ConfirmEmailPage />}
+          />
+
+          <Route
+            path="/verify-email"
+            element={<VerifyEmailPage />}
           />
 
           <Route

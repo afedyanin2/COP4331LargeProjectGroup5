@@ -1,71 +1,28 @@
 import { useState } from 'react';
-import {
-  Link,
-  Navigate,
-  useNavigate,
-} from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 
-/*
- * Safely handles empty and invalid server responses.
- */
-async function readJsonResponse(response) {
-  const responseText =
-    await response.text();
-
-  if (!responseText) {
-    throw new Error(
-      `Server returned an empty response (${response.status}).`
-    );
-  }
-
-  try {
-    return JSON.parse(responseText);
-  } catch {
-    throw new Error(
-      `Server returned an invalid response (${response.status}).`
-    );
-  }
-}
-
-function LoginPage({
-  isLoggedIn,
-  onLogin,
-}) {
+function LoginPage({ isLoggedIn, onLogin }) {
   const navigate = useNavigate();
 
-  const [formData, setFormData] =
-    useState({
-      username: '',
-      password: '',
-    });
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+  });
 
-  const [error, setError] =
-    useState('');
-
-  const [
-    isSubmitting,
-    setIsSubmitting,
-  ] = useState(false);
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (isLoggedIn) {
-    return (
-      <Navigate
-        to="/"
-        replace
-      />
-    );
+    return <Navigate to="/" replace />;
   }
 
   function handleChange(event) {
-    const { name, value } =
-      event.target;
+    const { name, value } = event.target;
 
-    setFormData(
-      (currentData) => ({
-        ...currentData,
-        [name]: value,
-      })
-    );
+    setFormData((currentData) => ({
+      ...currentData,
+      [name]: value,
+    }));
   }
 
   async function handleSubmit(event) {
@@ -85,83 +42,27 @@ function LoginPage({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(
-        '/api/login',
-        {
-          method: 'POST',
+      const response = await fetch('/api/login', {
+        method: 'POST',
 
-          headers: {
-            'Content-Type':
-              'application/json',
-          },
+        headers: {
+          'Content-Type': 'application/json',
+        },
 
-          body: JSON.stringify({
-            username:
-              formData.username.trim(),
+        body: JSON.stringify({
+          username: formData.username.trim(),
+          password: formData.password,
+        }),
+      });
 
-            password:
-              formData.password,
-          }),
-        }
-      );
+      const data = await response.json();
 
-      const data =
-        await readJsonResponse(
-          response
-        );
-
-      if (
-        !response.ok ||
-        data.error
-      ) {
+      if (!response.ok || data.error) {
         throw new Error(
-          data.error ||
-            'Unable to log in.'
+          data.error || 'Unable to log in.'
         );
       }
 
-      /*
-       * The password was correct, but the email
-       * has not been verified yet.
-       *
-       * Do not log the user in. Send the user to
-       * the code-entry page instead.
-       */
-      if (
-        data.requiresEmailVerification
-      ) {
-        localStorage.removeItem(
-          'noterietyToken'
-        );
-
-        localStorage.setItem(
-          'noterietyUserEmail',
-          data.email || ''
-        );
-
-        localStorage.setItem(
-          'noterietyUserName',
-          data.username ||
-            formData.username.trim()
-        );
-
-        localStorage.setItem(
-          'noterietyEmailVerified',
-          'false'
-        );
-
-        navigate('/confirm-email', {
-          state: {
-            email: data.email || '',
-          },
-        });
-
-        return;
-      }
-
-      /*
-       * Only verified users receive and store a JWT.
-       */
       localStorage.setItem(
         'noterietyToken',
         data.token
@@ -213,15 +114,8 @@ function LoginPage({
     <section className="page form-page">
       <h1>Log In</h1>
 
-      <form
-        className="basic-form"
-        onSubmit={handleSubmit}
-      >
-        {error && (
-          <p className="error-message">
-            {error}
-          </p>
-        )}
+      <form className="basic-form" onSubmit={handleSubmit}>
+        {error && <p className="error-message">{error}</p>}
 
         <label htmlFor="login-username">
           Username
@@ -237,10 +131,7 @@ function LoginPage({
           required
         />
 
-        <label htmlFor="login-password">
-          Password
-        </label>
-
+        <label htmlFor="login-password">Password</label>
         <input
           id="login-password"
           name="password"
@@ -248,7 +139,6 @@ function LoginPage({
           value={formData.password}
           onChange={handleChange}
           autoComplete="current-password"
-          required
         />
 
         <button
@@ -262,10 +152,7 @@ function LoginPage({
       </form>
 
       <p>
-        Don't have an account?{' '}
-        <Link to="/signup">
-          Sign up
-        </Link>
+        Don't have an account? <Link to="/signup">Sign up</Link>
       </p>
     </section>
   );
