@@ -1456,6 +1456,7 @@ app.get(
 							 
 		  
         .sort({
+          isPinned: -1,
           updatedAt: -1,
           createdAt: -1,
         })
@@ -1599,6 +1600,7 @@ app.post(
         title,
         body,
         categoryId: categoryId || null,
+        isPinned: false,
         createdAt: now,
         updatedAt: now,
       };
@@ -1745,6 +1747,69 @@ app.put(
         note: null,
         error:
           'Unable to update the note right now',
+      });
+    }
+  }
+);
+
+// -----------------------------------------------------------------------------
+// Update pinned status
+// -----------------------------------------------------------------------------
+
+app.put(
+  '/api/notes/:id/pin',
+  authenticateToken,
+  async (req, res) => {
+    const { id } = req.params;
+    const isPinned = Boolean(req.body.isPinned);
+
+    if (!isValidObjectId(id)) {
+      return res.status(200).json({
+        note: null,
+        error: 'Invalid note ID',
+      });
+    }
+
+    try {
+      const db = getDatabase();
+
+      const result = await db
+        .collection('Notes')
+        .findOneAndUpdate(
+          {
+            _id: new ObjectId(id),
+            userId: req.userId,
+          },
+          {
+            $set: {
+              isPinned,
+              updatedAt: new Date(),
+            },
+          },
+          {
+            returnDocument: 'after',
+          }
+        );
+
+      const updatedNote = result?.value ?? result;
+
+      if (!updatedNote) {
+        return res.status(200).json({
+          note: null,
+          error: 'Note not found',
+        });
+      }
+
+      return res.status(200).json({
+        note: updatedNote,
+        error: '',
+      });
+    } catch (error) {
+      console.error('Update pinned status error:', error);
+
+      return res.status(500).json({
+        note: null,
+        error: 'Unable to update the pinned status right now',
       });
     }
   }
