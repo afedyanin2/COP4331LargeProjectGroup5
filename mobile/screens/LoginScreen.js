@@ -9,10 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useTheme } from '../Theme';
+import { useTheme } from '../theme';
 import { login, saveToken } from '../api';
 
-export default function LoginScreen({ onLoggedIn, onGoToRegister }) {
+export default function LoginScreen({ onLoggedIn, onGoToRegister, onForgotPassword }) {
   const { colors } = useTheme();
 
   const [username, setUsername] = useState('');
@@ -108,6 +108,12 @@ export default function LoginScreen({ onLoggedIn, onGoToRegister }) {
           )}
         </Pressable>
 
+        <Pressable onPress={onForgotPassword} style={styles.forgotWrap}>
+          <Text style={{ color: colors.primary, fontSize: 14 }}>
+            Forgot password?
+          </Text>
+        </Pressable>
+
         <Pressable onPress={onGoToRegister} style={styles.linkWrap}>
           <Text style={[styles.link, { color: colors.textMuted }]}>
             Don't have an account?{' '}
@@ -142,6 +148,7 @@ const styles = StyleSheet.create({
   },
   buttonText: { fontSize: 16, fontWeight: '700' },
   error: { fontSize: 14, textAlign: 'center', marginBottom: 4 },
-  linkWrap: { marginTop: 22, alignItems: 'center' },
+  forgotWrap: { marginTop: 16, alignItems: 'center' },
+  linkWrap: { marginTop: 14, alignItems: 'center' },
   link: { fontSize: 14 },
 });

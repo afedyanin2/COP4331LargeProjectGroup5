@@ -1,36 +1,46 @@
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from './theme';
 import { getToken, clearToken } from './api';
+import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import NotesScreen from './screens/NotesScreen';
 import NoteEditorScreen from './screens/NoteEditorScreen';
 import SettingsScreen from './screens/SettingsScreen';
 
+const SPLASH_MS = 1400;
+
 function Root() {
-  const { colors, isDark } = useTheme();
+  const { isDark } = useTheme();
 
   const [user, setUser] = useState(null);
-  const [checking, setChecking] = useState(true);
+  const [booting, setBooting] = useState(true);
 
-  // Which auth screen when logged out: 'login' | 'register'
+  // Logged out: 'login' | 'register' | 'forgot'
   const [authView, setAuthView] = useState('login');
 
-  // Which screen when logged in: 'list' | 'editor' | 'settings'
+  // Logged in: 'list' | 'editor' | 'settings'
   const [view, setView] = useState('list');
   const [editingNote, setEditingNote] = useState(null);
 
   // Bumping this remounts NotesScreen so it refetches after a save.
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Check for a stored token, but hold the splash for a minimum beat
+  // so it doesn't flash by on fast devices.
   useEffect(() => {
+    const started = Date.now();
     getToken()
       .then((t) => {
         if (t) setUser({});
       })
-      .finally(() => setChecking(false));
+      .finally(() => {
+        const elapsed = Date.now() - started;
+        const wait = Math.max(0, SPLASH_MS - elapsed);
+        setTimeout(() => setBooting(false), wait);
+      });
   }, []);
 
   async function handleLogout() {
@@ -46,30 +56,37 @@ function Root() {
     setRefreshKey((k) => k + 1);
   }
 
-  if (checking) {
+  const bar = <StatusBar style={isDark ? 'light' : 'dark'} />;
+
+  if (booting) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} />
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-      </View>
+      <>
+        <SplashScreen />
+        {bar}
+      </>
     );
   }
 
   if (!user) {
     return (
       <>
-        {authView === 'login' ? (
+        {authView === 'login' && (
           <LoginScreen
             onLoggedIn={setUser}
             onGoToRegister={() => setAuthView('register')}
+            onForgotPassword={() => setAuthView('forgot')}
           />
-        ) : (
+        )}
+        {authView === 'register' && (
           <RegisterScreen
             onRegistered={setUser}
             onGoToLogin={() => setAuthView('login')}
           />
         )}
-        <StatusBar style={isDark ? 'light' : 'dark'} />
+        {authView === 'forgot' && (
+          <ForgotPasswordScreen onBack={() => setAuthView('login')} />
+        )}
+        {bar}
       </>
     );
   }
@@ -103,12 +120,10 @@ function Root() {
       )}
 
       {view === 'settings' && (
-        <SettingsScreen
-          onBack={() => setView('list')}
-          onLogout={handleLogout}
-        />
+        <SettingsScreen onBack={() => setView('list')} onLogout={handleLogout} />
       )}
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+
+      {bar}
     </>
   );
 }
@@ -120,7 +135,3 @@ export default function App() {
     </ThemeProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-});
