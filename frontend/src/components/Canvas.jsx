@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-function Canvas() 
+function Canvas({onChange, savedCanvas = []}) 
 {
     const canvasRef = useRef(null);
     const ctxRef = useRef(null);
@@ -9,11 +9,23 @@ function Canvas()
     const redoStrokes = useRef([]);
     const currStroke = useRef([]);
 
+    function redraw(ctx)
+    {
+        for (const stroke of strokes.current)
+        {
+            for (const point of stroke)
+            {
+                drawPoint(ctx, point);
+            }
+        }   
+    }
+
     function undo()
     {
         const canvas = canvasRef.current;
         const ctx = ctxRef.current;
 
+        if (!canvas || !ctx) return;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const removedStroke = strokes.current.pop()
@@ -23,19 +35,17 @@ function Canvas()
             redoStrokes.current.push(removedStroke);
         }
 
-        for (const stroke of strokes.current)
-        {
-            for (const point of stroke)
-            {
-                drawPoint(ctx, point);
-            }
-        }
+        redraw(ctx);
+
+        onChange([...strokes.current]);
     }
 
     function redo()
     {
         const canvas = canvasRef.current;
         const ctx = ctxRef.current;
+
+        if (!canvas || !ctx) return;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const removedStroke = redoStrokes.current.pop();
@@ -45,13 +55,9 @@ function Canvas()
             strokes.current.push(removedStroke)
         }
 
-        for (const stroke of strokes.current)
-        {
-            for (const point of stroke)
-            {
-                drawPoint(ctx, point);
-            }
-        }           
+        redraw(ctx);
+
+        onChange([...strokes.current]);
     }
 
     function drawPoint(ctx, point)
@@ -62,12 +68,49 @@ function Canvas()
         ctx.fill();
     }
 
+    useEffect(() =>
+    {
+        const ctx = ctxRef.current;
+
+        if (!ctx || !savedCanvas) return;
+
+        strokes.current = savedCanvas;
+
+        console.log(savedCanvas);
+
+        ctx.clearRect(0, 0, 500, 500);
+
+        if (savedCanvas.length > 0)
+        {
+            for (const stroke of savedCanvas)
+            {
+                for (const point of stroke)
+                {
+                    drawPoint(ctx, point);
+                }
+            }
+        }
+    }, [savedCanvas])
+
     useEffect(() => 
     {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext("2d");
 
         ctxRef.current = ctx;
+
+        if (savedCanvas.length > 0)
+        {
+            strokes.current = savedCanvas;
+
+            for (const stroke of savedCanvas)
+            {
+                for (const point of stroke)
+                {
+                    drawPoint(ctx, point);
+                }
+            }
+        }
 
         let prevX = 0;
         let prevY = 0;
@@ -86,11 +129,12 @@ function Canvas()
         function stopDrawing()
         {
             drawing = false;
-            ctx.beginPath();
 
             if (currStroke.current.length > 0)
             {
-                strokes.current.push(currStroke.current);
+                strokes.current.push([...currStroke.current]);
+
+                onChange([...strokes.current]);
             }
 
             currStroke.current = [];
@@ -145,8 +189,8 @@ function Canvas()
             />
 
             <div className = "canvas-buttons">
-                <button onClick={undo}>Undo</button>
-                <button onClick={redo}>Redo</button>
+                <button type="button" onClick={undo}>Undo</button>
+                <button type="button" onClick={redo}>Redo</button>
             </div>
        </div>  
     );

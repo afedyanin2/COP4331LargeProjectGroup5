@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Canvas from '../components/Canvas.jsx'
+import SavedCanvas from '../components/SavedCanvas.jsx'
 
 function getStoredNotes() {
   try {
@@ -15,6 +16,8 @@ function NoteTakingPage() {
   const [notes, setNotes] = useState(getStoredNotes);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [canvasInfo, setCanvasInfo] = useState([]);
+  const [savedCanvasInfo, setSavedCanvasInfo] = useState([]);
 
   useEffect(() => {
     localStorage.setItem('noterietyNotes', JSON.stringify(notes));
@@ -23,7 +26,7 @@ function NoteTakingPage() {
   function handleSubmit(event) {
     event.preventDefault();
 
-    if (!title.trim() && !content.trim()) {
+    if (!title.trim() && !content.trim() && canvasInfo.length === 0) {
       return;
     }
 
@@ -31,6 +34,7 @@ function NoteTakingPage() {
       id: Date.now(),
       title: title.trim() || 'Untitled Note',
       content: content.trim(),
+      canvasInfo: [...canvasInfo],
     };
 
     setNotes((currentNotes) => [newNote, ...currentNotes]);
@@ -60,7 +64,7 @@ function NoteTakingPage() {
 
         <label htmlFor="note-content">Note</label>
 
-        <div class="workspace">
+        <div className="workspace">
           <textarea
             id="note-content"
             rows="8"
@@ -68,7 +72,10 @@ function NoteTakingPage() {
             onChange={(event) => setContent(event.target.value)}
             placeholder="Write your note here"
           />
-          <Canvas/>
+          <Canvas 
+            onChange={setCanvasInfo}
+            savedCanvas={canvasInfo}
+          />
         </div>
         <button type="submit">Save Note</button>
       </form>
@@ -84,6 +91,8 @@ function NoteTakingPage() {
               <article className="note-card" key={note.id}>
                 <h3>{note.title}</h3>
                 <p>{note.content || 'This note has no content.'}</p>
+
+                {note.canvasInfo?.length > 0 && (<SavedCanvas drawing={note.canvasInfo}/>)}
 
                 <button
                   type="button"
