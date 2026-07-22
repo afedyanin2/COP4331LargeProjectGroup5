@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useTheme } from '../theme';
+import { useTheme } from '../Theme';
 import { login, saveToken } from '../api';
 
 export default function LoginScreen({ onLoggedIn, onGoToRegister }) {

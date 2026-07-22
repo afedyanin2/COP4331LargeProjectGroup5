@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ThemeProvider, useTheme } from './theme';
+import { ThemeProvider, useTheme } from './Theme';
 import { getToken, clearToken } from './api';
 import LoginScreen from './screens/LoginScreen';
 
