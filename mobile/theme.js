@@ -8,13 +8,14 @@ import React, {
   useState,
   useMemo,
   useCallback,
+  useEffect,
 } from 'react';
 import { useColorScheme } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 1. Palettes ----------------------------------------------------------
 // Same keys in both maps — that symmetry is what lets the toggle just
-// swap one object for the other. Every screen reads these keys, so
-// adding a token later means adding it here once, in both maps.
+// swap one object for the other.
 
 const light = {
   background: '#F6FAF7',
@@ -27,7 +28,7 @@ const light = {
   success:    '#52C41A',
   warning:    '#F5A623',
   error:      '#E74C3C',
-  border:     '#E9F5EE', // hairline; equals surfaceAlt for now
+  border:     '#DCEBE2',
 };
 
 const dark = {
@@ -46,9 +47,10 @@ const dark = {
 
 export const palettes = { light, dark };
 
+const MODE_KEY = 'noteriety_theme_mode';
+
 // 2. Context -----------------------------------------------------------
-// override is one of: 'system' | 'light' | 'dark'
-// 'system' follows the OS; the other two force a mode.
+// mode is one of: 'system' | 'light' | 'dark'
 
 const ThemeContext = createContext({
   colors: light,
@@ -58,20 +60,32 @@ const ThemeContext = createContext({
   toggle: () => {},
 });
 
-export function ThemeProvider({ children, initial = 'system' }) {
+export function ThemeProvider({ children }) {
   const systemScheme = useColorScheme(); // 'light' | 'dark' | null
-  const [override, setOverride] = useState(initial);
+  const [override, setOverride] = useState('system');
+
+  // Load the saved preference on launch so the choice survives a restart.
+  useEffect(() => {
+    AsyncStorage.getItem(MODE_KEY).then((saved) => {
+      if (saved === 'light' || saved === 'dark' || saved === 'system') {
+        setOverride(saved);
+      }
+    });
+  }, []);
 
   const isDark =
     override === 'system' ? systemScheme === 'dark' : override === 'dark';
 
   const colors = isDark ? dark : light;
 
-  const setMode = useCallback((next) => setOverride(next), []);
-  const toggle = useCallback(
-    () => setOverride(isDark ? 'light' : 'dark'),
-    [isDark],
-  );
+  const setMode = useCallback((next) => {
+    setOverride(next);
+    AsyncStorage.setItem(MODE_KEY, next);
+  }, []);
+
+  const toggle = useCallback(() => {
+    setMode(isDark ? 'light' : 'dark');
+  }, [isDark, setMode]);
 
   const value = useMemo(
     () => ({ colors, mode: override, isDark, setMode, toggle }),
@@ -85,20 +99,3 @@ export function ThemeProvider({ children, initial = 'system' }) {
 
 // 3. Hook --------------------------------------------------------------
 export const useTheme = () => useContext(ThemeContext);
-
-// 4. How screens use it ------------------------------------------------
-//
-// Wrap the app root once:
-//   <ThemeProvider><RootNavigator /></ThemeProvider>
-//
-// A primary button (this is why onPrimary exists — never hardcode the
-// label color, or it breaks in one of the two modes):
-//   const { colors } = useTheme();
-//   <Pressable style={{ backgroundColor: colors.primary }}>
-//     <Text style={{ color: colors.onPrimary }}>Log in</Text>
-//   </Pressable>
-//
-// The Settings dark-mode row:
-//   const { isDark, mode, setMode, toggle } = useTheme();
-//   <Switch value={isDark} onValueChange={toggle} />
-//   // or a 3-way control: setMode('system' | 'light' | 'dark')

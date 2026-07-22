@@ -13,7 +13,7 @@ import {
 import { useTheme } from '../theme';
 import { getNotes, deleteNote } from '../api';
 
-export default function NotesScreen({ onOpenNote, onNewNote, onLogout }) {
+export default function NotesScreen({ onOpenNote, onNewNote, onOpenSettings }) {
   const { colors } = useTheme();
 
   const [notes, setNotes] = useState([]);
@@ -99,8 +99,10 @@ export default function NotesScreen({ onOpenNote, onNewNote, onLogout }) {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Text style={[styles.heading, { color: colors.text }]}>My Notes</Text>
-        <Pressable onPress={onLogout} hitSlop={10}>
-          <Text style={{ color: colors.textMuted, fontSize: 14 }}>Log out</Text>
+        <Pressable onPress={onOpenSettings} hitSlop={10}>
+          <Text style={{ color: colors.primary, fontSize: 15, fontWeight: '600' }}>
+            Settings
+          </Text>
         </Pressable>
       </View>
 

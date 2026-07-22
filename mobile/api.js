@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const API_BASE = 'https://noteriety-app.com';
 
 const TOKEN_KEY = 'noteriety_token';
+const EMAIL_KEY = 'noteriety_email';
 
 export async function saveToken(token) {
   await AsyncStorage.setItem(TOKEN_KEY, token);
@@ -19,7 +20,17 @@ export async function getToken() {
 }
 
 export async function clearToken() {
-  await AsyncStorage.removeItem(TOKEN_KEY);
+  await AsyncStorage.multiRemove([TOKEN_KEY, EMAIL_KEY]);
+}
+
+// The backend's /api/me doesn't return the email, but resend-verification
+// needs it — so we stash it at register time.
+export async function saveEmail(email) {
+  await AsyncStorage.setItem(EMAIL_KEY, email);
+}
+
+export async function getEmail() {
+  return AsyncStorage.getItem(EMAIL_KEY);
 }
 
 // --- Auth ------------------------------------------------------------
@@ -45,10 +56,33 @@ export async function register({ username, password, firstName, lastName, email 
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error);
+  await saveEmail(email);
   return data;
 }
 
-// --- Notes (all require the token) -----------------------------------
+export async function forgotPassword(email) {
+  const res = await fetch(`${API_BASE}/api/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+export async function resendVerification(email) {
+  const res = await fetch(`${API_BASE}/api/resend-verification`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+// --- Account ---------------------------------------------------------
 
 async function authHeaders() {
   const token = await getToken();
@@ -57,6 +91,17 @@ async function authHeaders() {
     Authorization: `Bearer ${token}`,
   };
 }
+
+export async function getMe() {
+  const res = await fetch(`${API_BASE}/api/me`, {
+    headers: await authHeaders(),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data; // { firstName, lastName, username, emailVerified }
+}
+
+// --- Notes (all require the token) -----------------------------------
 
 export async function getNotes() {
   const res = await fetch(`${API_BASE}/api/notes`, {

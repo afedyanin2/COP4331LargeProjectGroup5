@@ -7,6 +7,7 @@ import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import NotesScreen from './screens/NotesScreen';
 import NoteEditorScreen from './screens/NoteEditorScreen';
+import SettingsScreen from './screens/SettingsScreen';
 
 function Root() {
   const { colors, isDark } = useTheme();
@@ -17,7 +18,7 @@ function Root() {
   // Which auth screen when logged out: 'login' | 'register'
   const [authView, setAuthView] = useState('login');
 
-  // Which screen when logged in: 'list' | 'editor'
+  // Which screen when logged in: 'list' | 'editor' | 'settings'
   const [view, setView] = useState('list');
   const [editingNote, setEditingNote] = useState(null);
 
@@ -75,7 +76,7 @@ function Root() {
 
   return (
     <>
-      {view === 'list' ? (
+      {view === 'list' && (
         <NotesScreen
           key={refreshKey}
           onOpenNote={(note) => {
@@ -86,9 +87,11 @@ function Root() {
             setEditingNote(null);
             setView('editor');
           }}
-          onLogout={handleLogout}
+          onOpenSettings={() => setView('settings')}
         />
-      ) : (
+      )}
+
+      {view === 'editor' && (
         <NoteEditorScreen
           note={editingNote}
           onDone={handleEditorDone}
@@ -96,6 +99,13 @@ function Root() {
             setView('list');
             setEditingNote(null);
           }}
+        />
+      )}
+
+      {view === 'settings' && (
+        <SettingsScreen
+          onBack={() => setView('list')}
+          onLogout={handleLogout}
         />
       )}
       <StatusBar style={isDark ? 'light' : 'dark'} />
