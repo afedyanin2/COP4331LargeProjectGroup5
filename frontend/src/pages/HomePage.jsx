@@ -1,58 +1,185 @@
 import { Link } from 'react-router-dom';
 
 function HomePage({ isLoggedIn }) {
-  if (isLoggedIn) {
-    return (
-      <section className="page">
-        <h1>Welcome to Noteriety</h1>
+  return (
+    <section className="home-page">
+      <div className="home-hero">
+        <div className="home-hero-copy">
+          <span className="home-eyebrow">
+            Notes made simple
+          </span>
 
-        <p>You are currently logged in.</p>
+          <h1>
+            Capture ideas.
+            <br />
+            Organize everything.
+          </h1>
 
-        <div className="page-actions">
-          <Link to="/notes" className="button-link">
-            Open My Notes
-          </Link>
+          <p className="home-hero-text">
+            Noteriety gives you a calm, organized place to write, search, pin, and manage your notes across desktop and mobile.
+          </p>
 
-          <Link to="/settings" className="secondary-link">
-            Account Settings
-          </Link>
+          <div className="home-hero-actions">
+            <Link
+              to={isLoggedIn ? '/notes' : '/signup'}
+              className="button-link home-primary-action"
+            >
+              {isLoggedIn
+                ? 'Open My Workspace'
+                : 'Create an Account'}
+            </Link>
+
+            <Link
+              to={isLoggedIn ? '/settings' : '/login'}
+              className="secondary-link home-secondary-action"
+            >
+              {isLoggedIn
+                ? 'Account Settings'
+                : 'Log In'}
+            </Link>
+          </div>
+
+          <div className="home-trust-row">
+            <span>Fast note creation</span>
+            <span>Simple organization</span>
+            <span>Accessible anywhere</span>
+          </div>
         </div>
 
-        <section className="content-section">
-          <h2>Your Workspace</h2>
-          <p>
-            Your recent notes and account information appear here.
-          </p>
-        </section>
-      </section>
-    );
-  }
+        <div
+          className="home-preview"
+          aria-label="Noteriety workspace preview"
+        >
+          <div className="home-preview-top">
+            <div>
+              <span className="preview-label">
+                Your Workspace
+              </span>
 
-  return (
-    <section className="page">
-      <h1>Welcome to Noteriety</h1>
+              <h2>
+                {isLoggedIn
+                  ? 'Welcome back'
+                  : 'Stay organized'}
+              </h2>
+            </div>
 
-      <p>
-        Noteriety is a simple app for writing and managing
-        your notes.
-      </p>
+            <span className="preview-status">
+              {isLoggedIn ? 'Ready' : 'Preview'}
+            </span>
+          </div>
 
-      <div className="page-actions">
-        <Link to="/signup" className="button-link">
-          Create an Account
-        </Link>
+          <div className="preview-search">
+            Search notes, categories, or tags
+          </div>
 
-        <Link to="/login" className="secondary-link">
-          Log In
-        </Link>
+          <div className="preview-note-grid">
+            <article className="preview-note-card preview-note-card-featured">
+              <span className="preview-chip">
+                Pinned
+              </span>
+
+              <h3>Project Ideas</h3>
+
+              <p>
+                Keep your best ideas easy to find and ready to revisit.
+              </p>
+
+              <div className="preview-note-footer">
+                <span>Ideas</span>
+                <span>Today</span>
+              </div>
+            </article>
+
+            <article className="preview-note-card">
+              <span className="preview-chip">
+                School
+              </span>
+
+              <h3>Study Notes</h3>
+
+              <p>
+                Sort classes, assignments, and reminders into categories.
+              </p>
+
+              <div className="preview-note-footer">
+                <span>School</span>
+                <span>Recent</span>
+              </div>
+            </article>
+
+            <article className="preview-note-card">
+              <span className="preview-chip">
+                Personal
+              </span>
+
+              <h3>Daily Tasks</h3>
+
+              <p>
+                Search and review everything from one clean workspace.
+              </p>
+
+              <div className="preview-note-footer">
+                <span>Personal</span>
+                <span>Saved</span>
+              </div>
+            </article>
+          </div>
+        </div>
       </div>
 
-      <section className="content-section">
-        <h2>Keep Your Notes Organized</h2>
-        <p>
-          Create notes, review your saved information, and manage your
-          account from one place.
-        </p>
+      <section className="home-features">
+        <div className="section-heading">
+          <span className="home-eyebrow">
+            Built for focus
+          </span>
+
+          <h2>
+            Everything you need to keep moving
+          </h2>
+
+          <p>
+            A clean note-taking experience that stays out of your way.
+          </p>
+        </div>
+
+        <div className="feature-grid">
+          <article className="feature-card">
+            <span className="feature-number">
+              01
+            </span>
+
+            <h3>Organize quickly</h3>
+
+            <p>
+              Use categories, tags, pinned notes, and recent activity to find what matters.
+            </p>
+          </article>
+
+          <article className="feature-card">
+            <span className="feature-number">
+              02
+            </span>
+
+            <h3>Write comfortably</h3>
+
+            <p>
+              Create and edit notes in a focused workspace designed for both desktop and mobile.
+            </p>
+          </article>
+
+          <article className="feature-card">
+            <span className="feature-number">
+              03
+            </span>
+
+            <h3>Acessible anywhere</h3>
+
+            <p>
+              Log in to your account anywhere and
+              switch between light &amp; dark themes from your account settings.
+            </p>
+          </article>
+        </div>
       </section>
     </section>
   );

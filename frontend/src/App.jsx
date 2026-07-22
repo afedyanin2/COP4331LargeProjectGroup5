@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes } from 'react-router-dom';
 
 import Navbar from './components/Navigationbar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -110,9 +110,31 @@ function handleThemeChange(newTheme) {
         </Routes>
       </main>
 
-      <footer className="footer">
-        <p>© 2026 Noteriety</p>
-      </footer>
+          <footer className="footer">
+            <div className="footer-inner">
+            <Link to="/" className="footer-brand">
+            <img
+              src="/noteriety-icon.webp"
+              alt=""
+              className="footer-logo"
+              width="34"
+              height="34"
+              decoding="async"
+              aria-hidden="true"
+            />
+
+          <span>Noteriety</span>
+          </Link>
+
+          <p>
+          Simple note-taking for everyday ideas.
+          </p>
+
+          <span className="footer-copyright">
+          © 2026 Noteriety
+          </span>
+          </div>
+          </footer>
     </div>
   );
 }

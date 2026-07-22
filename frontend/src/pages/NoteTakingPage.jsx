@@ -362,15 +362,6 @@ function NoteTakingPage() {
               <span>Workspace</span>
               <h1>My Notes</h1>
             </div>
-
-            <button
-              type="button"
-              className="notes-sidebar-add"
-              onClick={beginNewNote}
-              aria-label="Create a new note"
-            >
-              +
-            </button>
           </div>
 
           <button
@@ -407,6 +398,7 @@ function NoteTakingPage() {
               onClick={() => selectView('recent')}
             >
               <span>Recent</span>
+              <span>{notes.length}</span>
             </button>
 
             <div className="notes-sidebar-label">Categories</div>
@@ -425,10 +417,6 @@ function NoteTakingPage() {
               </button>
             ))}
           </nav>
-
-          <Link to="/settings" className="notes-settings-link">
-            Settings
-          </Link>
         </aside>
 
         <section className="notes-list-panel">
@@ -462,7 +450,19 @@ function NoteTakingPage() {
                 onClick={() => setSearchTerm('')}
                 aria-label="Clear search"
               >
-                ×
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             )}
           </div>
@@ -511,7 +511,17 @@ function NoteTakingPage() {
                           );
                         }}
                       >
-                        ⋮
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <circle cx="12" cy="5" r="1.8" />
+                          <circle cx="12" cy="12" r="1.8" />
+                          <circle cx="12" cy="19" r="1.8" />
+                        </svg>
                       </button>
 
                       {openMenuId === note.id && (
@@ -557,7 +567,11 @@ function NoteTakingPage() {
                     </div>
                   </div>
 
-                  <p className="workspace-note-preview">
+                  <p
+                    className={`workspace-note-preview ${
+                      note.content ? '' : 'is-empty'
+                    }`}
+                  >
                     {note.content || 'This note has no content.'}
                   </p>
 
@@ -700,14 +714,38 @@ function NoteTakingPage() {
 
               <div className="note-reader-heading">
                 <div>
-                  {selectedNote.pinned && (
-                    <span className="note-pinned-label">Pinned</span>
-                  )}
+                  <div className="note-reader-badges">
+                    {selectedNote.pinned && (
+                      <span className="note-pinned-label">Pinned</span>
+                    )}
+                    <span className="note-category-label">
+                      {selectedNote.category}
+                    </span>
+                  </div>
                   <h2>{selectedNote.title}</h2>
                   <p>Updated {formatDate(selectedNote.updatedAt)}</p>
                 </div>
 
                 <div className="note-reader-actions">
+                  <button
+                    type="button"
+                    className={`icon-button ${
+                      selectedNote.pinned ? 'is-active' : ''
+                    }`}
+                    aria-label={selectedNote.pinned ? 'Unpin note' : 'Pin note'}
+                    onClick={() => togglePin(selectedNote.id)}
+                  >
+                    <svg
+                      width="17"
+                      height="17"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" />
+                    </svg>
+                  </button>
+
                   <button
                     type="button"
                     className="editor-secondary-button"
@@ -741,16 +779,61 @@ function NoteTakingPage() {
                 ))}
               </div>
 
-              <div className="note-reader-content">
-                <p>
-                  {selectedNote.content ||
-                    'This note does not have any content.'}
-                </p>
+              <div
+                className={`note-reader-content ${
+                  selectedNote.content ? '' : 'is-empty'
+                }`}
+              >
+                {selectedNote.content ? (
+                  <p>{selectedNote.content}</p>
+                ) : (
+                  <>
+                    <svg
+                      width="26"
+                      height="26"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <path d="M14 2v6h6" />
+                      <path d="M12 12v6M9 15h6" />
+                    </svg>
+                    <h3>No content yet</h3>
+                    <p>Add some text and it&rsquo;ll show up here.</p>
+                    <button
+                      type="button"
+                      className="editor-primary-button"
+                      onClick={() => beginEditing(selectedNote)}
+                    >
+                      Add content
+                    </button>
+                  </>
+                )}
               </div>
             </article>
           ) : (
             <div className="note-editor-empty">
-              <div>N</div>
+              <div>
+                <svg
+                  width="26"
+                  height="26"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                </svg>
+              </div>
               <h2>Select a note</h2>
               <p>Choose a note from the list or create a new one.</p>
               <button type="button" onClick={beginNewNote}>
