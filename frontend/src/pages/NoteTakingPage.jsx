@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Canvas from '../components/Canvas.jsx'
 
 function getStoredNotes() {
   try {
@@ -58,14 +59,17 @@ function NoteTakingPage() {
         />
 
         <label htmlFor="note-content">Note</label>
-        <textarea
-          id="note-content"
-          rows="8"
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          placeholder="Write your note here"
-        />
 
+        <div class="workspace">
+          <textarea
+            id="note-content"
+            rows="8"
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            placeholder="Write your note here"
+          />
+          <Canvas/>
+        </div>
         <button type="submit">Save Note</button>
       </form>
 
