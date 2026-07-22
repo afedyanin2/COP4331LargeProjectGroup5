@@ -41,8 +41,8 @@ export default function RegisterScreen({ onRegistered, onGoToLogin }) {
       setError('Please enter a valid email address.');
       return;
     }
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters.');
       return;
     }
 
@@ -140,7 +140,7 @@ export default function RegisterScreen({ onRegistered, onGoToLogin }) {
           onChangeText={(v) => set('password', v)}
           secureTextEntry
           autoCapitalize="none"
-          placeholder="At least 6 characters"
+          placeholder="At least 8 characters"
           placeholderTextColor={colors.textMuted}
           style={inputStyle}
         />
