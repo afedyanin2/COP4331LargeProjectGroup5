@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useTheme } from './theme';
 import { getToken, clearToken } from './api';
 import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
 import NotesScreen from './screens/NotesScreen';
 import NoteEditorScreen from './screens/NoteEditorScreen';
 
@@ -13,11 +14,14 @@ function Root() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
 
-  // Which screen we're on: 'list' or 'editor'
+  // Which auth screen when logged out: 'login' | 'register'
+  const [authView, setAuthView] = useState('login');
+
+  // Which screen when logged in: 'list' | 'editor'
   const [view, setView] = useState('list');
   const [editingNote, setEditingNote] = useState(null);
 
-  // Bumping this forces NotesScreen to remount and refetch after a save.
+  // Bumping this remounts NotesScreen so it refetches after a save.
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -31,6 +35,7 @@ function Root() {
   async function handleLogout() {
     await clearToken();
     setUser(null);
+    setAuthView('login');
     setView('list');
   }
 
@@ -52,7 +57,17 @@ function Root() {
   if (!user) {
     return (
       <>
-        <LoginScreen onLoggedIn={setUser} onGoToRegister={() => {}} />
+        {authView === 'login' ? (
+          <LoginScreen
+            onLoggedIn={setUser}
+            onGoToRegister={() => setAuthView('register')}
+          />
+        ) : (
+          <RegisterScreen
+            onRegistered={setUser}
+            onGoToLogin={() => setAuthView('login')}
+          />
+        )}
         <StatusBar style={isDark ? 'light' : 'dark'} />
       </>
     );
