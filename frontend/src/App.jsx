@@ -13,6 +13,8 @@ import NotFoundPage from './pages/NotFoundPage';
 import SettingsPage from './pages/SettingsPage';
 import SignupPage from './pages/SignUpPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import './App.css';
 
@@ -92,6 +94,16 @@ function App() {
                 <SettingsPage onLogout={handleLogout} />
               </ProtectedRoute>
             }
+          />
+
+          <Route
+            path="/forgot-password"
+            element={<ForgotPasswordPage />}
+          />
+
+          <Route
+            path="/reset-password"
+            element={<ResetPasswordPage />}
           />
 
           <Route
