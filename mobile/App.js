@@ -1,37 +1,25 @@
 import { useState, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ThemeProvider, useTheme } from './Theme';
+import { ThemeProvider, useTheme } from './theme';
 import { getToken, clearToken } from './api';
 import LoginScreen from './screens/LoginScreen';
-
-// Temporary placeholder — replaced by the real notes list next.
-function NotesPlaceholder({ user, onLogout }) {
-  const { colors } = useTheme();
-  return (
-    <View style={[styles.center, { backgroundColor: colors.background }]}>
-      <Text style={{ color: colors.text, fontSize: 22, fontWeight: '700' }}>
-        Logged in{user?.firstName ? `, ${user.firstName}` : ''}
-      </Text>
-      <Text style={{ color: colors.textMuted, marginTop: 8 }}>
-        Notes list goes here.
-      </Text>
-      <Pressable
-        onPress={onLogout}
-        style={[styles.btn, { backgroundColor: colors.primary }]}
-      >
-        <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>Log Out</Text>
-      </Pressable>
-    </View>
-  );
-}
+import NotesScreen from './screens/NotesScreen';
+import NoteEditorScreen from './screens/NoteEditorScreen';
 
 function Root() {
   const { colors, isDark } = useTheme();
+
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
 
-  // On launch, see if a token is already stored (stay logged in).
+  // Which screen we're on: 'list' or 'editor'
+  const [view, setView] = useState('list');
+  const [editingNote, setEditingNote] = useState(null);
+
+  // Bumping this forces NotesScreen to remount and refetch after a save.
+  const [refreshKey, setRefreshKey] = useState(0);
+
   useEffect(() => {
     getToken()
       .then((t) => {
@@ -43,6 +31,13 @@ function Root() {
   async function handleLogout() {
     await clearToken();
     setUser(null);
+    setView('list');
+  }
+
+  function handleEditorDone() {
+    setView('list');
+    setEditingNote(null);
+    setRefreshKey((k) => k + 1);
   }
 
   if (checking) {
@@ -54,12 +49,39 @@ function Root() {
     );
   }
 
+  if (!user) {
+    return (
+      <>
+        <LoginScreen onLoggedIn={setUser} onGoToRegister={() => {}} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </>
+    );
+  }
+
   return (
     <>
-      {user ? (
-        <NotesPlaceholder user={user} onLogout={handleLogout} />
+      {view === 'list' ? (
+        <NotesScreen
+          key={refreshKey}
+          onOpenNote={(note) => {
+            setEditingNote(note);
+            setView('editor');
+          }}
+          onNewNote={() => {
+            setEditingNote(null);
+            setView('editor');
+          }}
+          onLogout={handleLogout}
+        />
       ) : (
-        <LoginScreen onLoggedIn={setUser} onGoToRegister={() => {}} />
+        <NoteEditorScreen
+          note={editingNote}
+          onDone={handleEditorDone}
+          onCancel={() => {
+            setView('list');
+            setEditingNote(null);
+          }}
+        />
       )}
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </>
@@ -75,6 +97,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  btn: { marginTop: 24, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
