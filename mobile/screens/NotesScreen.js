@@ -10,9 +10,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
+  Share,
   Alert,
 } from 'react-native';
-import { useTheme } from '../theme';
+import { useTheme, fonts, eyebrow } from '../theme';
+import { Eyebrow, Display } from '../components/Brand';
 import {
   getNotes,
   deleteNote,
@@ -20,6 +22,17 @@ import {
   getCategories,
   createCategory,
 } from '../api';
+
+function formatDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 
 export default function NotesScreen({ onOpenNote, onNewNote, onOpenSettings }) {
   const { colors } = useTheme();
@@ -32,6 +45,7 @@ export default function NotesScreen({ onOpenNote, onNewNote, onOpenSettings }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
+  const [menuNote, setMenuNote] = useState(null); // note whose ⋮ menu is open
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [savingCat, setSavingCat] = useState(false);
@@ -98,7 +112,21 @@ export default function NotesScreen({ onOpenNote, onNewNote, onOpenSettings }) {
     }
   }
 
+  // Native share sheet — covers both "share" and "download/export".
+  async function shareNote(note) {
+    setMenuNote(null);
+    try {
+      await Share.share({
+        title: note.title || 'Untitled note',
+        message: `${note.title || 'Untitled note'}\n\n${note.body || ''}`,
+      });
+    } catch (e) {
+      Alert.alert('Could not share', e.message);
+    }
+  }
+
   function confirmDelete(note) {
+    setMenuNote(null);
     Alert.alert('Delete note?', `"${note.title || 'Untitled'}" will be removed.`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -159,48 +187,60 @@ export default function NotesScreen({ onOpenNote, onNewNote, onOpenSettings }) {
 
   function renderNote({ item }) {
     const name = catName(item.categoryId);
+    const date = formatDate(item.updatedAt || item.createdAt);
     return (
       <Pressable
         onPress={() => onOpenNote(item)}
-        onLongPress={() => confirmDelete(item)}
+        onLongPress={() => setMenuNote(item)}
         style={({ pressed }) => [
           styles.card,
           {
             backgroundColor: item.isPinned ? colors.surfaceAlt : colors.surface,
             borderColor: item.isPinned ? colors.primary : colors.border,
-            opacity: pressed ? 0.7 : 1,
+            opacity: pressed ? 0.75 : 1,
           },
         ]}
       >
         <View style={styles.cardTop}>
-          <View style={{ flex: 1 }}>
-            {item.isPinned && (
-              <Text style={[styles.pinnedTag, { color: colors.primary }]}>
+          {item.isPinned ? (
+            <View style={[styles.pill, { backgroundColor: colors.primary }]}>
+              <Text style={[eyebrow, { color: colors.onPrimary, fontSize: 9 }]}>
                 PINNED
               </Text>
-            )}
-            <Text
-              style={[styles.cardTitle, { color: colors.text }]}
-              numberOfLines={1}
-            >
-              {item.title || 'Untitled note'}
-            </Text>
-          </View>
+            </View>
+          ) : (
+            <View />
+          )}
 
-          <Pressable onPress={() => togglePin(item)} hitSlop={12} style={styles.pinBtn}>
-            <Text style={{ fontSize: 18, opacity: item.isPinned ? 1 : 0.35 }}>
-              {item.isPinned ? '★' : '☆'}
-            </Text>
-          </Pressable>
+          <View style={styles.cardIcons}>
+            <Pressable onPress={() => togglePin(item)} hitSlop={10} style={styles.iconBtn}>
+              <Text style={{ fontSize: 17, opacity: item.isPinned ? 1 : 0.3 }}>
+                {item.isPinned ? '\u2605' : '\u2606'}
+              </Text>
+            </Pressable>
+            <Pressable onPress={() => setMenuNote(item)} hitSlop={10} style={styles.iconBtn}>
+              <Text style={{ fontSize: 18, color: colors.textMuted }}>{'\u22EE'}</Text>
+            </Pressable>
+          </View>
         </View>
+
+        <Text
+          style={[styles.cardTitle, { color: colors.text, fontFamily: fonts.display }]}
+          numberOfLines={1}
+        >
+          {item.title || 'Untitled note'}
+        </Text>
 
         <Text style={[styles.cardBody, { color: colors.textMuted }]} numberOfLines={2}>
           {item.body || 'This note has no content.'}
         </Text>
 
-        {name ? (
-          <Text style={[styles.cardCat, { color: colors.textMuted }]}>{name}</Text>
-        ) : null}
+        <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+          <Text style={[styles.meta, { color: colors.textMuted }]} numberOfLines={1}>
+            {name || 'Uncategorized'}
+          </Text>
+          <Text style={[styles.meta, { color: colors.textMuted }]}>{date}</Text>
+        </View>
       </Pressable>
     );
   }
@@ -208,11 +248,12 @@ export default function NotesScreen({ onOpenNote, onNewNote, onOpenSettings }) {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={[styles.heading, { color: colors.text }]}>My Notes</Text>
-        <Pressable onPress={onOpenSettings} hitSlop={10}>
-          <Text style={{ color: colors.primary, fontSize: 15, fontWeight: '600' }}>
-            Settings
-          </Text>
+        <View style={{ flex: 1 }}>
+          <Eyebrow>WORKSPACE</Eyebrow>
+          <Display size={30} style={{ marginTop: 8 }}>My Notes</Display>
+        </View>
+        <Pressable onPress={onOpenSettings} hitSlop={10} style={{ paddingTop: 6 }}>
+          <Text style={[eyebrow, { color: colors.primary }]}>SETTINGS</Text>
         </Pressable>
       </View>
 
@@ -253,6 +294,12 @@ export default function NotesScreen({ onOpenNote, onNewNote, onOpenSettings }) {
         ))}
         <Chip label="+ New" active={false} onPress={() => setShowNewCat(true)} />
       </ScrollView>
+
+      {!loading && (
+        <Text style={[styles.count, { color: colors.textMuted }]}>
+          {visible.length} {visible.length === 1 ? 'note' : 'notes'}
+        </Text>
+      )}
 
       {error ? (
         <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
@@ -298,6 +345,61 @@ export default function NotesScreen({ onOpenNote, onNewNote, onOpenSettings }) {
       >
         <Text style={{ color: colors.onPrimary, fontSize: 30, lineHeight: 34 }}>+</Text>
       </Pressable>
+
+      <Modal
+        visible={!!menuNote}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuNote(null)}
+      >
+        <Pressable style={styles.sheetWrap} onPress={() => setMenuNote(null)}>
+          <View
+            style={[
+              styles.sheet,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text
+              style={[styles.sheetTitle, { color: colors.textMuted }]}
+              numberOfLines={1}
+            >
+              {menuNote?.title || 'Untitled note'}
+            </Text>
+
+            <Pressable
+              style={styles.sheetItem}
+              onPress={() => {
+                const n = menuNote;
+                setMenuNote(null);
+                onOpenNote(n);
+              }}
+            >
+              <Text style={{ color: colors.text, fontSize: 16 }}>Edit</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.sheetItem}
+              onPress={() => {
+                const n = menuNote;
+                setMenuNote(null);
+                togglePin(n);
+              }}
+            >
+              <Text style={{ color: colors.text, fontSize: 16 }}>
+                {menuNote?.isPinned ? 'Unpin' : 'Pin to top'}
+              </Text>
+            </Pressable>
+
+            <Pressable style={styles.sheetItem} onPress={() => shareNote(menuNote)}>
+              <Text style={{ color: colors.text, fontSize: 16 }}>Share / Export</Text>
+            </Pressable>
+
+            <Pressable style={styles.sheetItem} onPress={() => confirmDelete(menuNote)}>
+              <Text style={{ color: colors.error, fontSize: 16 }}>Delete</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       <Modal visible={showNewCat} transparent animationType="fade">
         <View style={styles.modalWrap}>
@@ -365,11 +467,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 18,
   },
-  heading: { fontSize: 28, fontWeight: '700' },
   search: {
     borderWidth: 1,
     borderRadius: 10,
@@ -384,13 +485,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
   },
-  card: { borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 10 },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start' },
-  pinnedTag: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8, marginBottom: 2 },
-  cardTitle: { fontSize: 16, fontWeight: '700' },
-  cardBody: { fontSize: 14, marginTop: 4, lineHeight: 19 },
-  cardCat: { fontSize: 12, marginTop: 8, fontWeight: '600' },
-  pinBtn: { paddingLeft: 10 },
+  count: { ...eyebrow, fontSize: 10, marginBottom: 10 },
+  card: { borderWidth: 1, borderRadius: 14, padding: 16, marginBottom: 12 },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 24,
+  },
+  pill: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20 },
+  cardIcons: { flexDirection: 'row', alignItems: 'center' },
+  cardTitle: { fontSize: 18, fontWeight: '700', marginTop: 6, letterSpacing: -0.3 },
+  cardBody: { fontSize: 14, marginTop: 5, lineHeight: 20 },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    marginTop: 12,
+    paddingTop: 10,
+    gap: 12,
+  },
+  meta: { ...eyebrow, fontSize: 9.5, flexShrink: 1 },
+  iconBtn: { paddingLeft: 12 },
+  sheetWrap: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    borderWidth: 1,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingBottom: 34,
+    paddingTop: 8,
+  },
+  sheetTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    paddingHorizontal: 22,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  sheetItem: { paddingHorizontal: 22, paddingVertical: 15 },
   empty: { alignItems: 'center', marginTop: 60 },
   error: { fontSize: 14, marginBottom: 10 },
   fab: {

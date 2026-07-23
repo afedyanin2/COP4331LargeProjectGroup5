@@ -9,7 +9,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { useTheme } from '../theme';
+import { useTheme, fonts } from '../theme';
 import { getMe, getEmail, resendVerification } from '../api';
 
 export default function SettingsScreen({ onBack, onLogout }) {
@@ -65,7 +65,14 @@ export default function SettingsScreen({ onBack, onLogout }) {
         <Pressable onPress={onBack} hitSlop={10}>
           <Text style={{ color: colors.primary, fontSize: 16 }}>Back</Text>
         </Pressable>
-        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>
+        <Text
+          style={{
+            color: colors.text,
+            fontWeight: '700',
+            fontSize: 19,
+            fontFamily: fonts.display,
+          }}
+        >
           Settings
         </Text>
         <View style={{ width: 44 }} />

@@ -9,9 +9,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Share,
   Alert,
 } from 'react-native';
-import { useTheme } from '../theme';
+import { useTheme, fonts, eyebrow } from '../theme';
 import { createNote, updateNote, deleteNote, getCategories } from '../api';
 
 // One screen for both cases:
@@ -51,6 +52,17 @@ export default function NoteEditorScreen({ note, onDone, onCancel }) {
       Alert.alert('Could not save', e.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleShare() {
+    try {
+      await Share.share({
+        title: title.trim() || 'Untitled note',
+        message: `${title.trim() || 'Untitled note'}\n\n${body}`,
+      });
+    } catch (e) {
+      Alert.alert('Could not share', e.message);
     }
   }
 
@@ -107,8 +119,8 @@ export default function NoteEditorScreen({ note, onDone, onCancel }) {
           <Text style={{ color: colors.textMuted, fontSize: 16 }}>Cancel</Text>
         </Pressable>
 
-        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>
-          {isNew ? 'New Note' : 'Edit Note'}
+        <Text style={[eyebrow, { color: colors.textMuted }]}>
+          {isNew ? 'NEW NOTE' : 'EDIT NOTE'}
         </Text>
 
         <Pressable onPress={handleSave} disabled={busy} hitSlop={10}>
@@ -127,7 +139,7 @@ export default function NoteEditorScreen({ note, onDone, onCancel }) {
         onChangeText={setTitle}
         placeholder="Title"
         placeholderTextColor={colors.textMuted}
-        style={[styles.title, { color: colors.text }]}
+        style={[styles.title, { color: colors.text, fontFamily: fonts.display }]}
       />
 
       {categories.length > 0 && (
@@ -163,11 +175,19 @@ export default function NoteEditorScreen({ note, onDone, onCancel }) {
         style={[styles.body, { color: colors.text }]}
       />
 
-      {!isNew && (
-        <Pressable onPress={handleDelete} style={styles.deleteWrap}>
-          <Text style={{ color: colors.error, fontSize: 15 }}>Delete note</Text>
+      <View style={styles.footer}>
+        <Pressable onPress={handleShare} hitSlop={8}>
+          <Text style={{ color: colors.primary, fontSize: 15, fontWeight: '600' }}>
+            Share / Export
+          </Text>
         </Pressable>
-      )}
+
+        {!isNew && (
+          <Pressable onPress={handleDelete} hitSlop={8}>
+            <Text style={{ color: colors.error, fontSize: 15 }}>Delete note</Text>
+          </Pressable>
+        )}
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -180,7 +200,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 14,
   },
-  title: { fontSize: 24, fontWeight: '700', paddingVertical: 8 },
+  title: {
+    fontSize: 27,
+    fontWeight: '700',
+    paddingVertical: 8,
+    letterSpacing: -0.5,
+  },
   chipRow: { marginTop: 6, marginBottom: 6, flexGrow: 0 },
   chip: {
     borderWidth: 1,
@@ -189,5 +214,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   body: { flex: 1, fontSize: 16, lineHeight: 23, paddingTop: 8 },
-  deleteWrap: { paddingVertical: 18, alignItems: 'center' },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 18,
+  },
 });

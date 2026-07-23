@@ -7,112 +7,204 @@ import {
   StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
 } from 'react-native';
 import { useTheme } from '../theme';
-import { commonStyles, createThemedStyles, shadows, typography } from '../styles';
-import { forgotPassword } from '../api';
+import { Logo, Eyebrow, Display } from '../components/Brand';
+import { register, saveToken } from '../api';
 
-export default function ForgotPasswordScreen({ onBack }) {
+export default function RegisterScreen({ onRegistered, onGoToLogin }) {
   const { colors } = useTheme();
-  const themed = createThemedStyles(colors);
-  const [email, setEmail] = useState('');
+
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    username: '',
+    password: '',
+  });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
 
-  async function handleSend() {
+  function set(field, value) {
+    setForm((cur) => ({ ...cur, [field]: value }));
+  }
+
+  async function handleRegister() {
     setError('');
-    if (!email.trim() || !email.includes('@'))
-      return setError('Please enter a valid email address.');
+
+    if (!form.username.trim() || !form.password.trim() || !form.email.trim()) {
+      setError('Username, email, and password are required.');
+      return;
+    }
+    if (!form.email.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (form.password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
     setBusy(true);
     try {
-      await forgotPassword(email.trim());
-      setSent(true);
+      const data = await register({
+        username: form.username.trim(),
+        password: form.password,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim(),
+      });
+      await saveToken(data.token);
+      onRegistered(data);
     } catch (e) {
-      setError(e.message || 'Could not send reset email.');
+      setError(e.message || 'Could not create account.');
     } finally {
       setBusy(false);
     }
   }
 
+  const inputStyle = [
+    styles.input,
+    {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      color: colors.text,
+    },
+  ];
+
   return (
     <KeyboardAvoidingView
-      style={themed.screen}
+      style={[styles.screen, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.inner, commonStyles.centered]}>
-        <View style={[commonStyles.card, themed.surfaceCard, shadows.small, styles.card]}>
-          <View style={[styles.icon, themed.alternateCard]}>
-            <Text style={[styles.iconText, themed.primaryText]}>{sent ? '✓' : '?'}</Text>
-          </View>
-          <Text style={[typography.pageTitle, themed.text, styles.heading]}>
-            {sent ? 'Check your inbox' : 'Reset password'}
-          </Text>
-          <Text style={[typography.body, themed.mutedText, styles.body]}>
-            {sent
-              ? `If an account exists for ${email.trim()}, we've sent a reset link.`
-              : "Enter the email on your account and we'll send you a reset link."}
-          </Text>
-          {!sent && error ? <Text style={[styles.error, themed.errorText]}>{error}</Text> : null}
-          {!sent ? (
+      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+        <Logo />
+        <Eyebrow style={{ marginTop: 26 }}>GET STARTED</Eyebrow>
+        <Display size={30} style={{ marginTop: 10, marginBottom: 6 }}>
+          Create your{'\n'}account.
+        </Display>
+
+        {error ? (
+          <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
+        ) : null}
+
+        <View style={styles.row}>
+          <View style={styles.half}>
+            <Text style={[styles.label, { color: colors.text }]}>First name</Text>
             <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
+              value={form.firstName}
+              onChangeText={(v) => set('firstName', v)}
+              placeholder="First"
               placeholderTextColor={colors.textMuted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              style={[commonStyles.input, themed.input]}
+              style={inputStyle}
             />
-          ) : null}
-          <Pressable
-            onPress={sent ? onBack : handleSend}
-            disabled={busy}
-            style={({ pressed }) => [
-              commonStyles.primaryButton,
-              themed.primaryButton,
-              shadows.button,
-              styles.button,
-              { opacity: pressed || busy ? 0.75 : 1 },
-            ]}
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.onPrimary} />
-            ) : (
-              <Text style={[typography.button, themed.primaryButtonText]}>
-                {sent ? 'Back to log in' : 'Send reset link'}
-              </Text>
-            )}
-          </Pressable>
-          {!sent ? (
-            <Pressable onPress={onBack} style={styles.backLink}>
-              <Text style={[styles.link, themed.mutedText]}>Back to log in</Text>
-            </Pressable>
-          ) : null}
+          </View>
+          <View style={styles.half}>
+            <Text style={[styles.label, { color: colors.text }]}>Last name</Text>
+            <TextInput
+              value={form.lastName}
+              onChangeText={(v) => set('lastName', v)}
+              placeholder="Last"
+              placeholderTextColor={colors.textMuted}
+              style={inputStyle}
+            />
+          </View>
         </View>
-      </View>
+
+        <Text style={[styles.label, { color: colors.text }]}>Email</Text>
+        <TextInput
+          value={form.email}
+          onChangeText={(v) => set('email', v)}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          placeholder="you@example.com"
+          placeholderTextColor={colors.textMuted}
+          style={inputStyle}
+        />
+
+        <Text style={[styles.label, { color: colors.text }]}>Username</Text>
+        <TextInput
+          value={form.username}
+          onChangeText={(v) => set('username', v)}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder="username"
+          placeholderTextColor={colors.textMuted}
+          style={inputStyle}
+        />
+
+        <Text style={[styles.label, { color: colors.text }]}>Password</Text>
+        <TextInput
+          value={form.password}
+          onChangeText={(v) => set('password', v)}
+          secureTextEntry
+          autoCapitalize="none"
+          placeholder="At least 6 characters"
+          placeholderTextColor={colors.textMuted}
+          style={inputStyle}
+        />
+
+        <Pressable
+          onPress={handleRegister}
+          disabled={busy}
+          style={({ pressed }) => [
+            styles.button,
+            { backgroundColor: colors.primary, opacity: pressed || busy ? 0.7 : 1 },
+          ]}
+        >
+          {busy ? (
+            <ActivityIndicator color={colors.onPrimary} />
+          ) : (
+            <Text style={[styles.buttonText, { color: colors.onPrimary }]}>
+              Create Account
+            </Text>
+          )}
+        </Pressable>
+
+        <Text style={[styles.note, { color: colors.textMuted }]}>
+          We'll email you a verification link.
+        </Text>
+
+        <Pressable onPress={onGoToLogin} style={styles.linkWrap}>
+          <Text style={[styles.link, { color: colors.textMuted }]}>
+            Already have an account?{' '}
+            <Text style={{ color: colors.primary }}>Log in</Text>
+          </Text>
+        </Pressable>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
 const styles = StyleSheet.create({
-  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 36 },
-  card: { padding: 23 },
-  icon: {
-    width: 58,
-    height: 58,
-    borderRadius: 16,
-    alignSelf: 'center',
+  screen: { flex: 1 },
+  inner: { padding: 28, paddingTop: 70, paddingBottom: 40 },
+  brand: { fontSize: 30, fontWeight: '700', textAlign: 'center' },
+  subtitle: { fontSize: 15, textAlign: 'center', marginTop: 6, marginBottom: 18 },
+  row: { flexDirection: 'row', gap: 12 },
+  half: { flex: 1 },
+  label: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 14 },
+  input: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  button: {
+    marginTop: 26,
+    borderRadius: 10,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 18,
+    minHeight: 50,
   },
-  iconText: { fontSize: 27, fontWeight: '800' },
-  heading: { textAlign: 'center' },
-  body: { textAlign: 'center', marginTop: 10, marginBottom: 22 },
-  button: { marginTop: 22 },
-  backLink: { alignSelf: 'center', marginTop: 16, padding: 6 },
-  link: { fontSize: 14, fontWeight: '600' },
-  error: { marginBottom: 12, textAlign: 'center', fontSize: 14 },
+  buttonText: { fontSize: 16, fontWeight: '700' },
+  error: { fontSize: 14, textAlign: 'center', marginBottom: 4 },
+  note: { fontSize: 12, textAlign: 'center', marginTop: 12 },
+  linkWrap: { marginTop: 20, alignItems: 'center' },
+  link: { fontSize: 14 },
 });
