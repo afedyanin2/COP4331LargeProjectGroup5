@@ -12,6 +12,10 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme';
 import { Logo, Eyebrow, Display } from '../components/Brand';
+import PasswordRules, {
+  isPasswordValid,
+  MIN_PASSWORD_LENGTH,
+} from '../components/PasswordRules';
 import { register, saveToken } from '../api';
 
 export default function RegisterScreen({ onRegistered, onGoToLogin }) {
@@ -42,8 +46,8 @@ export default function RegisterScreen({ onRegistered, onGoToLogin }) {
       setError('Please enter a valid email address.');
       return;
     }
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (!isPasswordValid(form.password)) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
 
@@ -80,7 +84,7 @@ export default function RegisterScreen({ onRegistered, onGoToLogin }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        <Logo tile={false} />
+        <Logo />
         <Eyebrow style={{ marginTop: 26 }}>GET STARTED</Eyebrow>
         <Display size={30} style={{ marginTop: 10, marginBottom: 6 }}>
           Create your{'\n'}account.
@@ -146,6 +150,8 @@ export default function RegisterScreen({ onRegistered, onGoToLogin }) {
           placeholderTextColor={colors.textMuted}
           style={inputStyle}
         />
+
+        <PasswordRules password={form.password} />
 
         <Pressable
           onPress={handleRegister}
