@@ -1423,6 +1423,33 @@ button:hover {
   width: min(100% - 48px, 1120px);
   padding-top: 72px;
   padding-bottom: 90px;
+.notespace {
+  flex: 1;
+  gap: 20px;
+}
+
+.canvas-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.canvas {
+  flex: 1;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  width: 500px;
+  height: 500px;
+}
+
+.basic-form textarea {
+  flex: 1;
+  min-height: 140px;
+  resize: vertical;
 }
 
 .about-hero {
@@ -1643,6 +1670,10 @@ and (min-width: 701px) {
   margin: 0;
   padding: 0 28px 0 12px;
 
+
+
+.notes-grid,
+.card-grid {
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
   align-items: center;
