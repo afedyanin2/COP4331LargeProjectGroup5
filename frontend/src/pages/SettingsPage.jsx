@@ -38,7 +38,6 @@ function SettingsPage({
   theme,
   onThemeChange,
 }) {
-
   const navigate = useNavigate();
 
   /*
@@ -69,21 +68,6 @@ function SettingsPage({
   const [isSaving, setIsSaving] =
     useState(false);
 
-  /*
-   * Saves the user's theme preference locally.
-   *
-   * Theme preference is device/browser-specific,
-   * so it does not need to be stored in MongoDB.
-   */
-  const [theme, setTheme] =
-    useState(() => {
-      return (
-        localStorage.getItem(
-          'noterietyTheme'
-        ) || 'light'
-      );
-    });
-
   const [
     isSendingVerification,
     setIsSendingVerification,
@@ -98,21 +82,6 @@ function SettingsPage({
     verificationError,
     setVerificationError,
   ] = useState('');
-
-  /*
-   * Apply the theme whenever it changes.
-   */
-  useEffect(() => {
-    document.documentElement.setAttribute(
-      'data-theme',
-      theme
-    );
-
-    localStorage.setItem(
-      'noterietyTheme',
-      theme
-    );
-  }, [theme]);
 
   /*
    * Load the real account information from MongoDB.
@@ -350,20 +319,15 @@ function SettingsPage({
       setIsSaving(false);
     }
   }
-  
-  function handleThemeToggle() {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    onThemeChange(newTheme);
-  }
 
   async function handleSendVerificationLink() {
     setVerificationMessage('');
     setVerificationError('');
 
     /*
-    * The email should already have been loaded from
-    * MongoDB through GET /api/me.
-    */
+     * The email should already have been loaded from
+     * MongoDB through GET /api/me.
+     */
     const normalizedEmail =
       email.trim().toLowerCase();
 
@@ -385,9 +349,9 @@ function SettingsPage({
 
     try {
       /*
-      * Uses the existing verification resend API.
-      * No new backend route is required.
-      */
+       * Uses the existing verification resend API.
+       * No new backend route is required.
+       */
       const response = await fetch(
         '/api/resend-verification',
         {
@@ -404,25 +368,10 @@ function SettingsPage({
         }
       );
 
-      const responseText =
-        await response.text();
-
-      if (!responseText) {
-        throw new Error(
-          `Server returned an empty response (${response.status}).`
+      const data =
+        await readJsonResponse(
+          response
         );
-      }
-
-      let data;
-
-      try {
-        data =
-          JSON.parse(responseText);
-      } catch {
-        throw new Error(
-          `Server returned an invalid response (${response.status}).`
-        );
-      }
 
       if (
         !response.ok ||
@@ -449,6 +398,17 @@ function SettingsPage({
       );
     } finally {
       setIsSendingVerification(false);
+    }
+  }
+
+  function handleThemeToggle() {
+    const newTheme =
+      theme === 'dark'
+        ? 'light'
+        : 'dark';
+
+    if (onThemeChange) {
+      onThemeChange(newTheme);
     }
   }
 
@@ -564,28 +524,35 @@ function SettingsPage({
             : 'Save Username'}
         </button>
       </form>
-      
-      
+
       <section className="content-section appearance-settings">
         <h2>Appearance</h2>
-        
+
         <div className="mobile-theme-control">
           <span className="mobile-theme-label">
-            {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
-            </span>
-            
-            <button type="button"
+            {theme === 'dark'
+              ? 'Dark Mode'
+              : 'Light Mode'}
+          </span>
+
+          <button
+            type="button"
             className={`mobile-theme-toggle ${
-              theme === 'dark' ? 'is-dark' : ''
+              theme === 'dark'
+                ? 'is-dark'
+                : ''
             }`}
             role="switch"
-            aria-checked={theme === 'dark'}
+            aria-checked={
+              theme === 'dark'
+            }
             aria-label="Toggle theme"
-            onClick={handleThemeToggle}>
-              <span className="mobile-theme-toggle-thumb" />
-            </button>
-            </div>
-        </section>
+            onClick={handleThemeToggle}
+          >
+            <span className="mobile-theme-toggle-thumb" />
+          </button>
+        </div>
+      </section>
 
       <section className="content-section">
         <h2>Account</h2>
