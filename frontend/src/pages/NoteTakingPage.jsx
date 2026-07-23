@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import Canvas from '../components/Canvas.jsx';
+import SavedCanvas from '../components/SavedCanvas.jsx';
 
 const DEFAULT_CATEGORY = 'Uncategorized';
 
@@ -17,6 +19,7 @@ function getStoredNotes() {
       category: note.category || DEFAULT_CATEGORY,
       tags: Array.isArray(note.tags) ? note.tags : [],
       pinned: Boolean(note.pinned),
+      canvasInfo: Array.isArray(note.canvasInfo) ? note.canvasInfo : [],
       createdAt: note.createdAt || note.id || Date.now(),
       updatedAt: note.updatedAt || note.id || Date.now()
     }));
@@ -35,6 +38,8 @@ function NoteTakingPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [mobileView, setMobileView] = useState('list');
+  const [canvasInfo, setCanvasInfo] = useState([]);
+  const [savedCanvasInfo, setSavedCanvasInfo] = useState([]);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -151,6 +156,7 @@ function NoteTakingPage() {
     setIsCreating(true);
     setIsEditing(true);
     setOpenMenuId(null);
+    setCanvasInfo([]);
     setMobileView('editor');
   }
 
@@ -160,6 +166,7 @@ function NoteTakingPage() {
     setIsEditing(false);
     setOpenMenuId(null);
     setMobileView('editor');
+    setCanvasInfo(note.canvasInfo || []);
   }
 
   function beginEditing(note) {
@@ -170,6 +177,7 @@ function NoteTakingPage() {
       category: note.category,
       tags: note.tags.join(', ')
     });
+    setCanvasInfo(note.CanvasInfo || []);
     setIsCreating(false);
     setIsEditing(true);
     setOpenMenuId(null);
@@ -209,6 +217,7 @@ function NoteTakingPage() {
       content: formData.content.trim(),
       category: formData.category.trim() || DEFAULT_CATEGORY,
       tags,
+      canvasInfo: [...canvasInfo],
       updatedAt: currentTime
     };
 
@@ -681,6 +690,11 @@ function NoteTakingPage() {
                   onChange={handleFormChange}
                   placeholder="Start writing your note..."
                 />
+
+                  <Canvas
+                    onChange={setCanvasInfo}
+                    savedCanvas={canvasInfo}
+                  />
               </div>
 
               <div className="mobile-editor-actions">
@@ -814,6 +828,9 @@ function NoteTakingPage() {
                       Add content
                     </button>
                   </>
+                )}
+                {selectedNote.canvasInfo?.length > 0 && (
+                  <SavedCanvas drawing={selectedNote.canvasInfo} />
                 )}
               </div>
             </article>

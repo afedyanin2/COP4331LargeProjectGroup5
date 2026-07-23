@@ -8,9 +8,9 @@
   --site-surface: #ffffff;
   --site-surface-alt: #e9f5ee;
   --site-text: #1a2b22;
-  --site-text-muted: #38765f;
-  --site-primary: #3aa675;
-  --site-primary-dark: #2f865f;
+  --site-text-muted: ##2a5847;
+  --site-primary: #266c4c;
+  --site-primary-dark: #1c4f38;
   --site-primary-light: #d9f0e4;
   --site-success: #52c41a;
   --site-warning: #f5a623;
@@ -29,7 +29,7 @@ html[data-theme='dark'] {
   --site-surface-alt: #173125;
   --site-text: #e9f7ef;
   --site-text-muted: #9cc5a6;
-  --site-primary: #6fd8a8;
+  --site-primary: #478a6c;
   --site-primary-dark: #57bd90;
   --site-primary-light: #234d3a;
   --site-success: #7bd97b;
@@ -201,6 +201,7 @@ button:hover {
 }
 
 .basic-form textarea {
+  flex: 1;
   resize: vertical;
 }
 
@@ -1442,7 +1443,7 @@ button:hover {
 
 .canvas {
   flex: 1;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--site-border);
   border-radius: 8px;
   width: 500px;
   height: 500px;
