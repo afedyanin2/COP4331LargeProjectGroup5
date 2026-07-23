@@ -80,7 +80,7 @@ export default function RegisterScreen({ onRegistered, onGoToLogin }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
-        <Logo />
+        <Logo tile={false} />
         <Eyebrow style={{ marginTop: 26 }}>GET STARTED</Eyebrow>
         <Display size={30} style={{ marginTop: 10, marginBottom: 6 }}>
           Create your{'\n'}account.

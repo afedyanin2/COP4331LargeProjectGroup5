@@ -47,7 +47,7 @@ export default function LoginScreen({ onLoggedIn, onGoToRegister, onForgotPasswo
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
-        <Logo />
+        <Logo tile={false} />
         <Eyebrow style={{ marginTop: 30 }}>WELCOME BACK</Eyebrow>
         <Display size={32} style={{ marginTop: 10 }}>Sign in to{'\n'}your notes.</Display>
         <View style={{ height: 22 }} />

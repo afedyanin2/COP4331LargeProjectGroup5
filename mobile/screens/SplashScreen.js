@@ -35,7 +35,7 @@ export default function SplashScreen() {
           alignItems: 'center',
         }}
       >
-        <Logo size="lg" />
+        <Logo size="lg" tile={false} />
         <Text
           style={{
             fontFamily: fonts.mono,
