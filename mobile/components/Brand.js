@@ -4,8 +4,8 @@ import { useTheme, fonts, eyebrow } from '../theme';
 // The rounded logo mark + serif wordmark used on splash and auth screens.
 // `tile` draws the rounded background square behind the logo (matches web).
 // Set tile={false} if the logo art already has its own shape/background.
-export function Logo({ size = 'md', tile = true }) {
-  const { colors } = useTheme();
+export function Logo({ size = 'md', tile = false }) {
+  const { colors, isDark } = useTheme();
   const box = size === 'lg' ? 76 : 44;
   const radius = size === 'lg' ? 20 : 12;
   const art = Math.round(box * (tile ? 0.62 : 1));
@@ -26,7 +26,11 @@ export function Logo({ size = 'md', tile = true }) {
         }}
       >
         <Image
-          source={require('../assets/logo.png')}
+          source={
+            isDark
+              ? require('../assets/logo-dark.png')
+              : require('../assets/logo-light.png')
+          }
           style={{ width: art, height: art }}
           resizeMode="contain"
         />
