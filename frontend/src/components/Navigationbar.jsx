@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate,} from 'react-router-dom';
 
 function Navbar({ isLoggedIn, onLogout, theme }) {
   const navigate = useNavigate();

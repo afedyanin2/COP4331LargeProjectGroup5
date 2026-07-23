@@ -23,6 +23,19 @@ function App() {
     () => localStorage.getItem('noterietyLoggedIn') === 'true'
   );
 
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem('noterietyTheme') || 'light'
+  );
+  
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('noterietyTheme', theme);
+  }, [theme]);
+  
+  function handleThemeChange(newTheme) {
+    setTheme(newTheme === 'dark' ? 'dark' : 'light');
+  }
+
   function handleLogin(email) {
     localStorage.setItem('noterietyLoggedIn', 'true');
     localStorage.setItem('noterietyUserEmail', email);
@@ -92,10 +105,14 @@ function App() {
             path="/settings"
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn}>
-                <SettingsPage onLogout={handleLogout} />
+                <SettingsPage
+                  onLogout={handleLogout}
+                  theme={theme}
+                  onThemeChange={handleThemeChange}
+                />
               </ProtectedRoute>
             }
-          />
+/>
 
           <Route
             path="/forgot-password"
