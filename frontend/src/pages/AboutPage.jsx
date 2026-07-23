@@ -2,41 +2,83 @@ import { Link } from 'react-router-dom';
 
 function AboutPage({ isLoggedIn }) {
   return (
-    <section className="page">
-      <h1>About Us</h1>
+    <section className="page about-page">
+      <div className="about-hero">
+        <span className="home-eyebrow">
+          About Noteriety
+        </span>
 
-      <p>
-        Noteriety is a web application that helps users create,
-        manage, and review notes.
-      </p>
+        <h1>
+          The best place for your busiest ideas.
+        </h1>
 
-      <section className="content-section">
-        <h2>Our Purpose</h2>
         <p>
-          Our purpose is to provide a straightforward place for users
-          to keep important information.
+          Noteriety is a note-taking workspace designed to help users create, organize, search, and revisit important information without unnecessary clutter.
         </p>
+      </div>
+
+      <div className="about-grid">
+        <article className="about-card">
+          <span className="about-card-label">
+            Our purpose
+          </span>
+
+          <h2>Simple by design</h2>
+
+          <p>
+            We want note-taking to feel straightforward. Every part of the experience is designed to keep writing, organization, and navigation easy to understand.
+          </p>
+        </article>
+
+        <article className="about-card">
+          <span className="about-card-label">
+            Our approach
+          </span>
+
+          <h2>Built around focus</h2>
+
+          <p>
+            Categories, tags, pinned notes, search, and a clean editor help users spend more time thinking and less time managing their workspace.
+          </p>
+        </article>
+
+        <article className="about-card">
+          <span className="about-card-label">
+            Your experience
+          </span>
+
+          <h2>Ready wherever you work</h2>
+
+          <p>
+            The interface is responsive across desktop and mobile and supports both light and dark themes.
+          </p>
+        </article>
+      </div>
+
+      <section className="about-cta">
+        <div>
+          <span className="home-eyebrow">
+            {isLoggedIn
+              ? 'Your workspace is ready'
+              : 'Start writing'}
+          </span>
+
+          <h2>
+            {isLoggedIn
+              ? 'Continue where you left off.'
+              : 'Create your first organized note.'}
+          </h2>
+        </div>
+
+        <Link
+          to={isLoggedIn ? '/notes' : '/signup'}
+          className="button-link"
+        >
+          {isLoggedIn
+            ? 'Open Notes'
+            : 'Get Started'}
+        </Link>
       </section>
-
-      {isLoggedIn ? (
-        <section className="content-section">
-          <h2>Continue Writing Notes</h2>
-          <p>You are currently signed in to your Noteriety account.</p>
-
-          <Link to="/notes" className="button-link">
-            Open Notes
-          </Link>
-        </section>
-      ) : (
-        <section className="content-section">
-          <h2>Get Started</h2>
-          <p>Create an account to begin writing notes.</p>
-
-          <Link to="/signup" className="button-link">
-            Sign Up
-          </Link>
-        </section>
-      )}
     </section>
   );
 }

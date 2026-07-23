@@ -1,0 +1,263 @@
+@media screen and (max-width: 700px) {
+  :root {
+    --mobile-page-padding: 20px;
+    --mobile-gap-sm: 10px;
+    --mobile-gap-md: 16px;
+  }
+
+  body {
+    min-width: 0;
+  }
+
+  .navbar-inner,
+  .notes-page-navbar .navbar-inner {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    margin: 0;
+    padding: 20px 16px;
+    gap: 14px;
+    text-align: center;
+  }
+
+  .site-name {
+    flex-direction: column;
+    justify-self: center;
+    gap: 8px;
+  }
+
+  .site-logo {
+    width: 56px;
+    height: 56px;
+  }
+
+  .site-name {
+    font-size: 1.6rem;
+  }
+
+  .nav-links,
+  .notes-page-navbar .nav-links {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+    row-gap: var(--mobile-gap-sm);
+    column-gap: var(--mobile-gap-md);
+  }
+
+  .nav-link {
+    min-height: auto;
+    padding: 4px 2px;
+  }
+
+  .nav-button {
+    width: 100%;
+    max-width: 320px;
+    justify-content: center;
+  }
+
+  .page,
+  .form-page,
+  .about-page {
+    width: 100%;
+    padding: 28px var(--mobile-page-padding);
+  }
+
+  .page h1 {
+    font-size: 1.7rem;
+  }
+
+  .page-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--mobile-gap-md);
+  }
+
+  .button-link,
+  .basic-form button,
+  .home-primary-action,
+  .new-note-button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .secondary-link,
+  .home-secondary-action {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .content-section {
+    padding: 18px;
+  }
+
+  .home-hero {
+    grid-template-columns: 1fr;
+    padding: 40px 0 50px;
+    gap: 36px;
+    text-align: left;
+  }
+
+  .home-hero h1 {
+    font-size: clamp(2.1rem, 9vw, 2.8rem);
+  }
+
+  .home-preview {
+    padding: 18px;
+  }
+
+  .home-preview::before {
+    display: none;
+  }
+
+  .preview-note-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .feature-grid,
+  .about-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-card:last-child,
+  .about-card:last-child {
+    grid-column: auto;
+  }
+
+  .about-hero h1 {
+    font-size: clamp(2.1rem, 9vw, 3rem);
+  }
+
+  .about-cta {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: var(--mobile-gap-md);
+  }
+
+  .footer-inner {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    gap: 8px;
+    padding: 20px 0;
+  }
+
+  .footer-copyright {
+    text-align: center;
+  }
+
+  .notes-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .notes-sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--workspace-border);
+  }
+
+  .notes-list-panel {
+    border-right: none;
+    border-bottom: 1px solid var(--workspace-border);
+  }
+
+  .note-editor-details {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .note-editor-panel {
+    padding: 26px 18px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .site-logo {
+    width: 48px;
+    height: 48px;
+  }
+
+  .site-name {
+    font-size: 1.4rem;
+  }
+
+  .nav-links {
+    row-gap: 8px;
+    column-gap: 14px;
+    font-size: 0.92rem;
+  }
+
+  .home-hero h1 {
+    font-size: 2rem;
+  }
+
+  .about-hero h1 {
+    font-size: 2.1rem;
+  }
+
+  .section-heading h2 {
+    font-size: clamp(1.6rem, 8vw, 2.2rem);
+  }
+
+  .note-editor-panel {
+    padding: 22px 14px;
+  }
+
+  .note-editor-fields {
+    padding: 18px;
+  }
+
+  .footer-logo {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+@media screen and (max-width: 360px) {
+  .page,
+  .form-page,
+  .about-page {
+    padding: 24px 14px;
+  }
+
+  .navbar-inner {
+    padding: 16px 12px;
+  }
+
+  .nav-links {
+    row-gap: 8px;
+    column-gap: 10px;
+  }
+
+  .home-hero h1 {
+    font-size: 1.8rem;
+  }
+}
+
+@media (hover: none) {
+  button:hover,
+  .nav-link:hover,
+  .button-link:hover,
+  .basic-form button:hover,
+  .nav-button:hover,
+  .notes-sidebar-navigation button:hover,
+  .workspace-note-card:hover {
+    opacity: 1;
+    box-shadow: initial;
+    transform: none;
+  }
+
+  button:active,
+  .button-link:active,
+  .nav-button:active {
+    opacity: 0.85;
+  }
+}

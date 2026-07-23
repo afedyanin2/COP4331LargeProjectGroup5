@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Route, Routes } from 'react-router-dom';
 
 import Navbar from './components/Navigationbar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -23,6 +23,19 @@ function App() {
     () => localStorage.getItem('noterietyLoggedIn') === 'true'
   );
 
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem('noterietyTheme') || 'light'
+  );
+  
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('noterietyTheme', theme);
+  }, [theme]);
+  
+  function handleThemeChange(newTheme) {
+    setTheme(newTheme === 'dark' ? 'dark' : 'light');
+  }
+
   function handleLogin(email) {
     localStorage.setItem('noterietyLoggedIn', 'true');
     localStorage.setItem('noterietyUserEmail', email);
@@ -39,6 +52,7 @@ function App() {
       <Navbar
         isLoggedIn={isLoggedIn}
         onLogout={handleLogout}
+        theme={theme}
       />
 
       <main className="main-content">
@@ -91,10 +105,14 @@ function App() {
             path="/settings"
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn}>
-                <SettingsPage onLogout={handleLogout} />
+                <SettingsPage
+                  onLogout={handleLogout}
+                  theme={theme}
+                  onThemeChange={handleThemeChange}
+                />
               </ProtectedRoute>
             }
-          />
+/>
 
           <Route
             path="/forgot-password"
@@ -113,11 +131,20 @@ function App() {
         </Routes>
       </main>
 
-      <footer className="footer">
-        <p>© 2026 Noteriety</p>
-      </footer>
+          <footer className="footer">
+            <div className="footer-inner">
+              <span></span>
+              <p>
+                Simple note-taking for everyday ideas.
+              </p>
+
+              <span className="footer-copyright">
+                © 2026 Noteriety
+              </span>
+            </div>
+          </footer>
     </div>
-  );
+    );
 }
 
 export default App;

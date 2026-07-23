@@ -34,13 +34,11 @@ async function readJsonResponse(response) {
 
 function SettingsPage({
   onLogout,
-
-  /*
-   * Optional callback for updating the username
-   * displayed elsewhere in the application.
-   */
   onUsernameChange,
+  theme,
+  onThemeChange,
 }) {
+
   const navigate = useNavigate();
 
   /*
@@ -352,13 +350,10 @@ function SettingsPage({
       setIsSaving(false);
     }
   }
-
-  function handleThemeChange(event) {
-    setTheme(
-      event.target.checked
-        ? 'dark'
-        : 'light'
-    );
+  
+  function handleThemeToggle() {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    onThemeChange(newTheme);
   }
 
   async function handleSendVerificationLink() {
@@ -569,28 +564,28 @@ function SettingsPage({
             : 'Save Username'}
         </button>
       </form>
-
-      <section className="content-section">
+      
+      
+      <section className="content-section appearance-settings">
         <h2>Appearance</h2>
-
-        <label
-          htmlFor="dark-mode-toggle"
-          className="theme-setting"
-        >
-          <input
-            id="dark-mode-toggle"
-            type="checkbox"
-            checked={
-              theme === 'dark'
-            }
-            onChange={
-              handleThemeChange
-            }
-          />
-
-          Use dark mode
-        </label>
-      </section>
+        
+        <div className="mobile-theme-control">
+          <span className="mobile-theme-label">
+            {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+            </span>
+            
+            <button type="button"
+            className={`mobile-theme-toggle ${
+              theme === 'dark' ? 'is-dark' : ''
+            }`}
+            role="switch"
+            aria-checked={theme === 'dark'}
+            aria-label="Toggle theme"
+            onClick={handleThemeToggle}>
+              <span className="mobile-theme-toggle-thumb" />
+            </button>
+            </div>
+        </section>
 
       <section className="content-section">
         <h2>Account</h2>

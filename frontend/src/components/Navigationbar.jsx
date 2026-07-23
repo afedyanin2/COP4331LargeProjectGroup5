@@ -1,7 +1,9 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate,} from 'react-router-dom';
 
-function Navbar({ isLoggedIn, onLogout }) {
+function Navbar({ isLoggedIn, onLogout, theme }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isNotesPage = location.pathname === '/notes';
 
   function handleLogout() {
     onLogout();
@@ -13,10 +15,18 @@ function Navbar({ isLoggedIn, onLogout }) {
   }
 
   return (
-    <header className="navbar">
+    <header className={`navbar ${ isNotesPage ? 'notes-page-navbar' : ''}`} >
       <div className="navbar-inner">
         <Link to="/" className="site-name">
-          Noteriety
+        <img
+          src={theme === 'dark' ? '/dark-theme.webp' : '/light-theme.webp'}
+          alt="Noteriety logo"
+          className="site-logo"
+          width="42"
+          height="42"
+          decoding="async"
+        />
+          <span>Noteriety</span>
         </Link>
 
         <nav className="nav-links" aria-label="Main navigation">
