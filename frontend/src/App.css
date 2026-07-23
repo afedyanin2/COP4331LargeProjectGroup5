@@ -42,36 +42,157 @@ html[data-theme='dark'] {
   --site-shadow-button: 0 7px 18px rgba(111, 216, 168, 0.16);
   --site-focus-ring: 0 0 0 3px rgba(111, 216, 168, 0.2);
 }
+/* =========================================================
+   NOTERIETY APP STYLES
+   ========================================================= */
 
+/* Apply consistent sizing to every element. */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
+/* =========================================================
+   LIGHT MODE COLORS
+   Light mode is the default theme.
+   ========================================================= */
+
+:root {
+  color-scheme: light;
+
+  --color-background: #f6faf7;
+  --color-surface: #ffffff;
+  --color-surface-alt: #e9f5ee;
+
+  --color-text: #1a2b22;
+  --color-text-muted: #38765f;
+
+  --color-primary: #3aa675;
+  --color-primary-hover: #318f65;
+  --color-primary-text: #ffffff;
+
+  --color-success: #52c41a;
+  --color-warning: #f5a623;
+  --color-error: #e74c3c;
+  --color-error-hover: #c93c30;
+
+  --color-border: #b9d9c7;
+  --color-input-background: #ffffff;
+  --color-focus-ring: rgba(58, 166, 117, 0.3);
+
+  --color-shadow: rgba(26, 43, 34, 0.1);
+}
+
+/* =========================================================
+   DARK MODE COLORS
+   Activated when the HTML element contains:
+   data-theme="dark"
+   ========================================================= */
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-background: #08140e;
+  --color-surface: #0f1e16;
+  --color-surface-alt: #173125;
+
+  --color-text: #e9f7ef;
+  --color-text-muted: #9cc5a6;
+
+  --color-primary: #6fd8a8;
+  --color-primary-hover: #8ce3bc;
+  --color-primary-text: #08140e;
+
+  --color-success: #7bd97b;
+  --color-warning: #ffc857;
+  --color-error: #ff7b6f;
+  --color-error-hover: #ff948a;
+
+  --color-border: #315b46;
+  --color-input-background: #173125;
+  --color-focus-ring: rgba(111, 216, 168, 0.3);
+
+  --color-shadow: rgba(0, 0, 0, 0.35);
+}
+
+/* =========================================================
+   DOCUMENT AND PAGE LAYOUT
+   ========================================================= */
+
 html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  background-color: var(--color-background);
+}
+
 body {
   margin: 0;
-  background-color: var(--site-background);
-  color: var(--site-text);
+
+  background-color: var(--color-background);
+  color: var(--color-text);
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+
+  line-height: 1.5;
+
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
-body {
-  min-width: 320px;
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
+img {
+  max-width: 100%;
+}
+
+/* Main application wrapper. */
 .app {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--site-background);
-  color: var(--site-text);
+  background-color: var(--color-background);
+  color: var(--color-text);
 }
 
-.navbar {
-  border-bottom: 1px solid var(--site-border);
-  background-color: var(--site-surface);
-  box-shadow: var(--site-shadow-small);
+/* Standard page container. */
+.page {
+  width: min(100% - 2rem, 1100px);
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+
+  color: var(--color-text);
+}
+
+/* Used for pages that should center their content. */
+.centered-page {
+  min-height: calc(100vh - 120px);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+}
+
+/* Form pages use a narrower content width. */
+.form-page {
+  width: min(100% - 2rem, 600px);
 }
 
 .nav-link:hover,
@@ -179,48 +300,80 @@ button:hover {
 .basic-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin: 24px 0;
+  gap: 0.75rem;
+
+  background-color: var(--color-surface);
+  color: var(--color-text);
+
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+
+  padding: 1.5rem;
+
+  box-shadow: 0 6px 18px var(--color-shadow);
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .basic-form label {
-  margin-top: 8px;
-  font-weight: bold;
+  margin-top: 0.25rem;
+
+  color: var(--color-text);
+  font-weight: 700;
 }
 
 .basic-form input,
 .basic-form textarea,
 .basic-form select {
   width: 100%;
-  padding: 10px;
-  border: 1px solid var(--site-border);
-  border-radius: 9px;
-  background-color: var(--site-surface);
-  color: var(--site-text);
-  font: inherit;
+
+  background-color: var(--color-input-background);
+  color: var(--color-text);
+
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+
+  padding: 0.75rem 0.9rem;
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .basic-form textarea {
+  min-height: 140px;
   resize: vertical;
+}
+
+.basic-form input::placeholder,
+.basic-form textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.8;
 }
 
 .basic-form input:focus,
 .basic-form textarea:focus,
 .basic-form select:focus {
-  border-color: var(--site-primary);
   outline: none;
-  box-shadow: var(--site-focus-ring);
+
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
-.basic-form input::placeholder,
-.basic-form textarea::placeholder {
-  color: var(--site-text-muted);
+/* Read-only email field on the settings page. */
+.basic-form input[readonly] {
+  background-color: var(--color-surface-alt);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
 }
 
-.basic-form button {
-  width: fit-content;
-  margin-top: 12px;
-}
+/* =========================================================
+   BUTTONS
+   ========================================================= */
 
 .error-message,
 .success-message {
@@ -352,122 +505,71 @@ button:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  border-color: var(--workspace-primary);
-  border-radius: 10px;
-  background: var(--workspace-primary);
-  color: #ffffff;
-  font-weight: 700;
-}
 
-.notes-sidebar-navigation {
-  margin-top: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+  min-height: 30px;
 
-.notes-sidebar-navigation button {
-  width: 100%;
-  min-height: 42px;
-  padding: 8px 11px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+
   border: 1px solid transparent;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--workspace-muted);
-  box-shadow: none;
-  text-align: left;
-}
+  border-radius: 8px;
 
-.notes-sidebar-navigation button span:first-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  padding: 0.2rem 0.5rem;
 
-.notes-sidebar-navigation button span:last-child {
-  min-width: 26px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: var(--workspace-surface-alt);
-  font-size: 0.76rem;
+  font-weight: 700;
   text-align: center;
+  text-decoration: none;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.1s ease,
+    opacity 0.2s ease;
 }
 
-.notes-sidebar-navigation button:hover,
-.notes-sidebar-navigation button:focus-visible {
-  background: var(--workspace-surface-alt);
-  color: var(--workspace-text);
-}
-
-.notes-sidebar-navigation button.active {
-  border-color: var(--workspace-border);
-  background: var(--workspace-primary-light);
-  color: var(--workspace-primary-dark);
-  font-weight: 700;
-}
-
-.notes-sidebar-label {
-  margin: 22px 10px 7px;
-  color: var(--workspace-muted);
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.notes-settings-link {
-  margin-top: auto;
-  padding: 11px;
-  color: var(--workspace-muted);
-  border-radius: 9px;
-  font-weight: 700;
+button:hover,
+.button-link:hover {
+  background-color: var(--color-primary-hover);
   text-decoration: none;
 }
 
-.notes-settings-link:hover,
-.notes-settings-link:focus-visible {
-  background: var(--workspace-surface-alt);
-  color: var(--workspace-primary-dark);
+button:active,
+.button-link:active {
+  transform: translateY(1px);
 }
 
-.notes-list-panel {
-  min-width: 0;
-  min-height: 720px;
-  padding: 26px 17px;
-  background: var(--workspace-surface);
-  border-right: 1px solid var(--workspace-border);
+button:focus-visible,
+.button-link:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
 }
 
-.notes-list-heading h2 {
-  font-size: 1.4rem;
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
-.mobile-new-note-button {
-  display: none;
+/* Add spacing between multiple buttons inside a form. */
+.basic-form button {
+  margin-top: 0.5rem;
 }
 
-.notes-search {
-  position: relative;
-  margin-top: 20px;
+/* Logout or destructive action button. */
+.delete-button {
+  background-color: var(--color-error);
+  color: #ffffff;
 }
 
-.notes-search input {
-  width: 100%;
-  min-height: 46px;
-  padding: 10px 42px 10px 13px;
-  border: 1px solid var(--workspace-border);
-  border-radius: 10px;
-  background: var(--workspace-background);
-  color: var(--workspace-text);
-  font: inherit;
+.delete-button:hover {
+  background-color: var(--color-error-hover);
 }
 
+/* =========================================================
+   STATUS MESSAGES
+   ========================================================= */
 
 .notes-search button {
   position: absolute;
@@ -487,32 +589,86 @@ button:hover {
   background: transparent;
   color: var(--workspace-muted);
   box-shadow: none;
+.success-message,
+.warning-message,
+.error-message {
+  margin: 0 0 0.75rem;
+
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+
+  font-weight: 700;
 }
 
-.notes-result-count {
-  margin: 13px 2px 11px;
-  color: var(--workspace-muted);
-  font-size: 0.84rem;
+.success-message {
+  color: var(--color-success);
+  background-color: color-mix(
+    in srgb,
+    var(--color-success) 12%,
+    transparent
+  );
+
+  border: 1px solid color-mix(
+    in srgb,
+    var(--color-success) 35%,
+    transparent
+  );
 }
 
-.workspace-notes-list {
+.warning-message {
+  color: var(--color-warning);
+  background-color: color-mix(
+    in srgb,
+    var(--color-warning) 12%,
+    transparent
+  );
+
+  border: 1px solid color-mix(
+    in srgb,
+    var(--color-warning) 35%,
+    transparent
+  );
+}
+
+.error-message {
+  color: var(--color-error);
+  background-color: color-mix(
+    in srgb,
+    var(--color-error) 12%,
+    transparent
+  );
+
+  border: 1px solid color-mix(
+    in srgb,
+    var(--color-error) 35%,
+    transparent
+  );
+}
+
+/* =========================================================
+   EMAIL VERIFICATION CODE
+   ========================================================= */
+
+.verification-code-input {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.5rem;
+  text-align: center;
+}
+
+/* =========================================================
+   SETTINGS PAGE
+   ========================================================= */
+
+.theme-setting {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+  align-items: center;
+  gap: 0.75rem;
 
-.workspace-note-card {
-  position: relative;
-  padding: 15px;
-  border: 1px solid var(--workspace-border);
-  border-radius: 12px;
-  background: var(--workspace-surface);
+  color: var(--color-text);
+  font-weight: 600;
+
   cursor: pointer;
-  transition:
-    border-color 0.18s ease,
-    background-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
 }
 
 .workspace-note-card:hover {
@@ -838,10 +994,9 @@ button:hover {
 
 .note-reader-content p {
   margin: 0;
-  color: var(--workspace-text);
-  line-height: 1.72;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
+
+  accent-color: var(--color-primary);
+  cursor: pointer;
 }
 
 .note-reader-content.is-empty {
@@ -881,49 +1036,46 @@ button:hover {
   text-align: center;
 }
 
-.note-editor-empty > div {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--workspace-border);
-  border-radius: 17px;
-  background: var(--workspace-primary-light);
-  color: var(--workspace-primary-dark);
-  font-size: 1.55rem;
-  font-weight: 900;
+/* =========================================================
+   NOTES AND LISTS
+   Generic styles for notes and cards.
+   ========================================================= */
+
+.notes-grid,
+.card-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(240px, 1fr));
+
+  gap: 1rem;
 }
 
-.note-editor-empty p {
-  color: var(--workspace-muted);
+.note-card h2,
+.note-card h3,
+.card h2,
+.card h3 {
+  margin-bottom: 0.5rem;
 }
 
-.mobile-editor-heading,
-.mobile-editor-actions {
+.note-card p,
+.card p {
+  color: var(--color-text-muted);
+}
+
+/* =========================================================
+   UTILITY CLASSES
+   ========================================================= */
+
+.hidden {
   display: none;
 }
 
-.delete-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(9, 20, 14, 0.62);
+.full-width {
+  width: 100%;
 }
 
-.delete-modal {
-  width: min(100%, 420px);
-  padding: 26px;
-  border: 1px solid var(--workspace-border);
-  border-radius: 16px;
-  background: var(--workspace-surface);
-  color: var(--workspace-text);
-  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.27);
+.text-center {
+  text-align: center;
 }
 
 .delete-modal p {
@@ -1012,14 +1164,18 @@ button:hover {
 
 .mobile-theme-toggle-thumb {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 24px;
-  height: 24px;
-  background-color: #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
-  transition: transform 0.22s ease;
+
+  width: 1px;
+  height: 1px;
+
+  padding: 0;
+  margin: -1px;
+
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+
+  white-space: nowrap;
+  border: 0;
 }
 
 .mobile-theme-toggle.is-dark .mobile-theme-toggle-thumb {
@@ -1739,4 +1895,5 @@ html[data-theme='dark'] .home-preview::after {
     width: 22px;
     height: 22px;
   }
+}
 }

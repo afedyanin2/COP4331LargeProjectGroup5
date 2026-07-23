@@ -1054,6 +1054,16 @@ app.put(
       req.body.lastName || ''
     ).trim();
 
+    const username = normalizeUsername(
+      req.body.username
+    );
+
+    if (!username) {
+      return res.status(200).json({
+        error: 'Username is required',
+      });
+    }
+
     try {
       if (
         !isValidObjectId(req.userId)
@@ -1065,6 +1075,24 @@ app.put(
       }
 
       const db = getDatabase();
+
+      const existingUser = await db
+        .collection('Users')
+        .findOne({
+          username,
+          _id: {
+            $ne: new ObjectId(
+              req.userId
+            ),
+          },
+        });
+
+      if (existingUser) {
+        return res.status(200).json({
+          error:
+            'Username is already in use',
+        });
+      }
 
       const result = await db
         .collection('Users')
@@ -1078,6 +1106,7 @@ app.put(
             $set: {
               firstName,
               lastName,
+              username,
               updatedAt: new Date(),
             },
           }
@@ -1092,6 +1121,7 @@ app.put(
       return res.status(200).json({
         firstName,
         lastName,
+        username,
         error: '',
       });
     } catch (error) {
@@ -1109,6 +1139,288 @@ app.put(
 );
 
 // -----------------------------------------------------------------------------
+// Get all categories
+// -----------------------------------------------------------------------------
+
+app.get(
+  '/api/categories',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const db = getDatabase();
+
+      const categories = await db
+        .collection('Categories')
+        .find({
+          userId: req.userId,
+        })
+        .sort({
+          name: 1,
+        })
+        .toArray();
+
+      return res.status(200).json({
+        categories,
+        error: '',
+      });
+    } catch (error) {
+      console.error(
+        'Get categories error:',
+        error
+      );
+
+      return res.status(500).json({
+        categories: [],
+        error:
+          'Unable to load categories right now',
+      });
+    }
+  }
+);
+
+// -----------------------------------------------------------------------------
+// Create category
+// -----------------------------------------------------------------------------
+
+app.post(
+  '/api/categories',
+  authenticateToken,
+  async (req, res) => {
+    const name = String(
+      req.body.name || ''
+    ).trim();
+
+    if (!name) {
+      return res.status(200).json({
+        id: -1,
+        category: null,
+        error:
+          'Category name is required',
+      });
+    }
+
+    try {
+      const db = getDatabase();
+
+      const existingCategory = await db
+        .collection('Categories')
+        .findOne({
+          userId: req.userId,
+          name,
+        });
+
+      if (existingCategory) {
+        return res.status(200).json({
+          id: -1,
+          category: null,
+          error:
+            'A category with that name already exists',
+        });
+      }
+
+      const now = new Date();
+
+      const category = {
+        userId: req.userId,
+        name,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      const result = await db
+        .collection('Categories')
+        .insertOne(category);
+
+      category._id = result.insertedId;
+
+      return res.status(200).json({
+        id:
+          result.insertedId.toString(),
+        category,
+        error: '',
+      });
+    } catch (error) {
+      console.error(
+        'Create category error:',
+        error
+      );
+
+      return res.status(500).json({
+        id: -1,
+        category: null,
+        error:
+          'Unable to create the category right now',
+      });
+    }
+  }
+);
+
+// -----------------------------------------------------------------------------
+// Rename category
+// -----------------------------------------------------------------------------
+
+app.put(
+  '/api/categories/:id',
+  authenticateToken,
+  async (req, res) => {
+    const { id } = req.params;
+
+    const name = String(
+      req.body.name || ''
+    ).trim();
+
+    if (!isValidObjectId(id)) {
+      return res.status(200).json({
+        category: null,
+        error: 'Invalid category ID',
+      });
+    }
+
+    if (!name) {
+      return res.status(200).json({
+        category: null,
+        error:
+          'Category name is required',
+      });
+    }
+
+    try {
+      const db = getDatabase();
+
+      const existingCategory = await db
+        .collection('Categories')
+        .findOne({
+          userId: req.userId,
+          name,
+          _id: {
+            $ne: new ObjectId(id),
+          },
+        });
+
+      if (existingCategory) {
+        return res.status(200).json({
+          category: null,
+          error:
+            'A category with that name already exists',
+        });
+      }
+
+      const result = await db
+        .collection('Categories')
+        .findOneAndUpdate(
+          {
+            _id: new ObjectId(id),
+            userId: req.userId,
+          },
+          {
+            $set: {
+              name,
+              updatedAt: new Date(),
+            },
+          },
+          {
+            returnDocument: 'after',
+          }
+        );
+
+      const updatedCategory =
+        result?.value ?? result;
+
+      if (!updatedCategory) {
+        return res.status(200).json({
+          category: null,
+          error: 'Category not found',
+        });
+      }
+
+      return res.status(200).json({
+        category: updatedCategory,
+        error: '',
+      });
+    } catch (error) {
+      console.error(
+        'Rename category error:',
+        error
+      );
+
+      return res.status(500).json({
+        category: null,
+        error:
+          'Unable to rename the category right now',
+      });
+    }
+  }
+);
+
+// -----------------------------------------------------------------------------
+// Delete category
+// -----------------------------------------------------------------------------
+// Notes in this category are not deleted - they are unassigned back to
+// "Uncategorized" so users don't lose notes just from deleting a category.
+
+app.delete(
+  '/api/categories/:id',
+  authenticateToken,
+  async (req, res) => {
+    const { id } = req.params;
+
+    if (!isValidObjectId(id)) {
+      return res.status(200).json({
+        error: 'Invalid category ID',
+      });
+    }
+
+    try {
+      const db = getDatabase();
+
+      const result = await db
+        .collection('Categories')
+        .deleteOne({
+          _id: new ObjectId(id),
+          userId: req.userId,
+        });
+
+      if (
+        result.deletedCount === 0
+      ) {
+        return res.status(200).json({
+          error: 'Category not found',
+        });
+      }
+
+      await db
+        .collection('Notes')
+        .updateMany(
+          {
+            userId: req.userId,
+            categoryId: id,
+          },
+          {
+            $set: {
+              categoryId: null,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+      return res.status(200).json({
+        error: '',
+      });
+    } catch (error) {
+      console.error(
+        'Delete category error:',
+        error
+      );
+
+      return res.status(500).json({
+        error:
+          'Unable to delete the category right now',
+      });
+    }
+  }
+);
+
+// -----------------------------------------------------------------------------
 // Get all notes
 // -----------------------------------------------------------------------------
 
@@ -1116,15 +1428,35 @@ app.get(
   '/api/notes',
   authenticateToken,
   async (req, res) => {
+    const categoryId = String(
+      req.query.categoryId || ''
+    ).trim();
+
     try {
       const db = getDatabase();
+      const filter = {
+        userId: req.userId,
+      };
+
+      if (categoryId === 'uncategorized') {
+        filter.categoryId = null;
+      } else if (categoryId) {
+        if (!isValidObjectId(categoryId)) {
+          return res.status(200).json({
+            notes: [],
+            error: 'Invalid category ID',
+          });
+        }
+        filter.categoryId = categoryId;
+      }
 
       const notes = await db
         .collection('Notes')
-        .find({
-          userId: req.userId,
-        })
+        .find(filter)
+							 
+		  
         .sort({
+          isPinned: -1,
           updatedAt: -1,
           createdAt: -1,
         })
@@ -1218,6 +1550,10 @@ app.post(
       req.body.body || ''
     );
 
+    const categoryId = String(
+      req.body.categoryId || ''
+    ).trim();
+
     if (!title) {
       return res.status(200).json({
         id: -1,
@@ -1227,14 +1563,44 @@ app.post(
       });
     }
 
+    if (categoryId) {
+      if (!isValidObjectId(categoryId)) {
+        return res.status(200).json({
+          id: -1,
+          note: null,
+          error: 'Invalid category ID',
+        });
+      }
+    }
+
     try {
       const db = getDatabase();
+
+      if (categoryId) {
+        const category = await db
+          .collection('Categories')
+          .findOne({
+            _id: new ObjectId(categoryId),
+            userId: req.userId,
+          });
+
+        if (!category) {
+          return res.status(200).json({
+            id: -1,
+            note: null,
+            error: 'Category not found',
+          });
+        }
+      }
+
       const now = new Date();
 
       const note = {
         userId: req.userId,
         title,
         body,
+        categoryId: categoryId || null,
+        isPinned: false,
         createdAt: now,
         updatedAt: now,
       };
@@ -1285,6 +1651,10 @@ app.put(
       req.body.body || ''
     );
 
+    const categoryId = String(
+      req.body.categoryId || ''
+    ).trim();
+
     if (!isValidObjectId(id)) {
       return res.status(200).json({
         note: null,
@@ -1300,8 +1670,33 @@ app.put(
       });
     }
 
+    if (categoryId) {
+      if (!isValidObjectId(categoryId)) {
+        return res.status(200).json({
+          note: null,
+          error: 'Invalid category ID',
+        });
+      }
+    }
+
     try {
       const db = getDatabase();
+
+      if (categoryId) {
+        const category = await db
+          .collection('Categories')
+          .findOne({
+            _id: new ObjectId(categoryId),
+            userId: req.userId,
+          });
+
+        if (!category) {
+          return res.status(200).json({
+            note: null,
+            error: 'Category not found',
+          });
+        }
+      }
 
       const result = await db
         .collection('Notes')
@@ -1314,6 +1709,7 @@ app.put(
             $set: {
               title,
               body,
+              categoryId: categoryId || null,
               updatedAt: new Date(),
             },
           },
@@ -1351,6 +1747,69 @@ app.put(
         note: null,
         error:
           'Unable to update the note right now',
+      });
+    }
+  }
+);
+
+// -----------------------------------------------------------------------------
+// Update pinned status
+// -----------------------------------------------------------------------------
+
+app.put(
+  '/api/notes/:id/pin',
+  authenticateToken,
+  async (req, res) => {
+    const { id } = req.params;
+    const isPinned = Boolean(req.body.isPinned);
+
+    if (!isValidObjectId(id)) {
+      return res.status(200).json({
+        note: null,
+        error: 'Invalid note ID',
+      });
+    }
+
+    try {
+      const db = getDatabase();
+
+      const result = await db
+        .collection('Notes')
+        .findOneAndUpdate(
+          {
+            _id: new ObjectId(id),
+            userId: req.userId,
+          },
+          {
+            $set: {
+              isPinned,
+              updatedAt: new Date(),
+            },
+          },
+          {
+            returnDocument: 'after',
+          }
+        );
+
+      const updatedNote = result?.value ?? result;
+
+      if (!updatedNote) {
+        return res.status(200).json({
+          note: null,
+          error: 'Note not found',
+        });
+      }
+
+      return res.status(200).json({
+        note: updatedNote,
+        error: '',
+      });
+    } catch (error) {
+      console.error('Update pinned status error:', error);
+
+      return res.status(500).json({
+        note: null,
+        error: 'Unable to update the pinned status right now',
       });
     }
   }

@@ -12,6 +12,9 @@ import NoteTakingPage from './pages/NoteTakingPage';
 import NotFoundPage from './pages/NotFoundPage';
 import SettingsPage from './pages/SettingsPage';
 import SignupPage from './pages/SignUpPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import './App.css';
 
@@ -19,21 +22,6 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(
     () => localStorage.getItem('noterietyLoggedIn') === 'true'
   );
-
- const [theme, setTheme] = useState(
-  () => localStorage.getItem('noterietyTheme') || 'light'
-);
-
-useEffect(() => {
-  document.documentElement.dataset.theme = theme;
-}, [theme]);
-
-function handleThemeChange(newTheme) {
-  const safeTheme = newTheme === 'dark' ? 'dark' : 'light';
-
-  setTheme(safeTheme);
-  localStorage.setItem('noterietyTheme', safeTheme);
-}
 
   function handleLogin(email) {
     localStorage.setItem('noterietyLoggedIn', 'true');
@@ -87,6 +75,11 @@ function handleThemeChange(newTheme) {
           />
 
           <Route
+            path="/verify-email"
+            element={<VerifyEmailPage />}
+          />
+
+          <Route
             path="/notes"
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn}>
@@ -99,9 +92,19 @@ function handleThemeChange(newTheme) {
             path="/settings"
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn}>
-                <SettingsPage onLogout={handleLogout} theme={theme} onThemeChange={handleThemeChange} />
+                <SettingsPage onLogout={handleLogout} />
               </ProtectedRoute>
             }
+          />
+
+          <Route
+            path="/forgot-password"
+            element={<ForgotPasswordPage />}
+          />
+
+          <Route
+            path="/reset-password"
+            element={<ResetPasswordPage />}
           />
 
           <Route

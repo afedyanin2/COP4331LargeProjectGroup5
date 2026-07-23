@@ -1,4 +1,4 @@
-import {Link, NavLink, useLocation, useNavigate} from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 
 function Navbar({ isLoggedIn, onLogout, theme }) {
   const navigate = useNavigate();
@@ -48,15 +48,13 @@ function Navbar({ isLoggedIn, onLogout, theme }) {
                 Settings
               </NavLink>
 
-              {location.pathname !== '/settings' && (
-                <button
-                  type="button"
-                  className="nav-button"
-                  onClick={handleLogout}
-                >
-                  Log Out
-                </button>
-              )}
+              <button
+                type="button"
+                className="nav-button"
+                onClick={handleLogout}
+              >
+                Log Out
+              </button>
             </>
           ) : (
             <>
