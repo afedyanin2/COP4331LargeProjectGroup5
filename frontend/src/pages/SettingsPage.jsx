@@ -86,6 +86,21 @@ function SettingsPage({
       );
     });
 
+  const [
+    isSendingVerification,
+    setIsSendingVerification,
+  ] = useState(false);
+
+  const [
+    verificationMessage,
+    setVerificationMessage,
+  ] = useState('');
+
+  const [
+    verificationError,
+    setVerificationError,
+  ] = useState('');
+
   /*
    * Apply the theme whenever it changes.
    */
@@ -346,6 +361,102 @@ function SettingsPage({
     );
   }
 
+  async function handleSendVerificationLink() {
+    setVerificationMessage('');
+    setVerificationError('');
+
+    /*
+    * The email should already have been loaded from
+    * MongoDB through GET /api/me.
+    */
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setVerificationError(
+        'Your account does not have an email address.'
+      );
+      return;
+    }
+
+    if (emailVerified) {
+      setVerificationMessage(
+        'Your email is already verified.'
+      );
+      return;
+    }
+
+    setIsSendingVerification(true);
+
+    try {
+      /*
+      * Uses the existing verification resend API.
+      * No new backend route is required.
+      */
+      const response = await fetch(
+        '/api/resend-verification',
+        {
+          method: 'POST',
+
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+
+          body: JSON.stringify({
+            email: normalizedEmail,
+          }),
+        }
+      );
+
+      const responseText =
+        await response.text();
+
+      if (!responseText) {
+        throw new Error(
+          `Server returned an empty response (${response.status}).`
+        );
+      }
+
+      let data;
+
+      try {
+        data =
+          JSON.parse(responseText);
+      } catch {
+        throw new Error(
+          `Server returned an invalid response (${response.status}).`
+        );
+      }
+
+      if (
+        !response.ok ||
+        data.error
+      ) {
+        throw new Error(
+          data.error ||
+            'Unable to send verification link.'
+        );
+      }
+
+      setVerificationMessage(
+        `A verification link was sent to ${normalizedEmail}.`
+      );
+    } catch (requestError) {
+      console.error(
+        'Verification email failed:',
+        requestError
+      );
+
+      setVerificationError(
+        requestError.message ||
+          'Unable to send verification link.'
+      );
+    } finally {
+      setIsSendingVerification(false);
+    }
+  }
+
   function handleLogout() {
     onLogout();
     navigate('/');
@@ -408,14 +519,46 @@ function SettingsPage({
           readOnly
         />
 
-        <p className="settings-detail">
-          Email status:{' '}
-          <strong>
-            {emailVerified
-              ? 'Verified'
-              : 'Not verified'}
-          </strong>
-        </p>
+        <div className="email-verification-setting">
+          <p className="settings-detail">
+            Email status:{' '}
+
+            <strong>
+              {emailVerified
+                ? 'Verified'
+                : 'Not verified'}
+            </strong>
+          </p>
+
+          {verificationError && (
+            <p className="error-message">
+              {verificationError}
+            </p>
+          )}
+
+          {verificationMessage && (
+            <p className="success-message">
+              {verificationMessage}
+            </p>
+          )}
+
+          {!emailVerified && (
+            <button
+              type="button"
+              onClick={
+                handleSendVerificationLink
+              }
+              disabled={
+                isSendingVerification ||
+                !email
+              }
+            >
+              {isSendingVerification
+                ? 'Sending Link...'
+                : 'Send Verification Link'}
+            </button>
+          )}
+        </div>
 
         <button
           type="submit"
