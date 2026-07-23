@@ -486,7 +486,7 @@ function NoteTakingPage() {
                 <article
                   className={`workspace-note-card ${
                     selectedNoteId === note.id ? 'selected' : ''
-                  }`}
+                  } ${openMenuId === note.id ? 'menu-open' : ''}`}
                   key={note.id}
                   onClick={() => openNote(note)}
                 >
@@ -714,14 +714,9 @@ function NoteTakingPage() {
 
               <div className="note-reader-heading">
                 <div>
-                  <div className="note-reader-badges">
-                    {selectedNote.pinned && (
-                      <span className="note-pinned-label">Pinned</span>
-                    )}
-                    <span className="note-category-label">
-                      {selectedNote.category}
-                    </span>
-                  </div>
+                  {selectedNote.pinned && (
+                    <span className="note-pinned-label">Pinned</span>
+                  )}
                   <h2>{selectedNote.title}</h2>
                   <p>Updated {formatDate(selectedNote.updatedAt)}</p>
                 </div>
@@ -736,13 +731,19 @@ function NoteTakingPage() {
                     onClick={() => togglePin(selectedNote.id)}
                   >
                     <svg
-                      width="17"
-                      height="17"
+                      width="16"
+                      height="16"
                       viewBox="0 0 24 24"
-                      fill="currentColor"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       aria-hidden="true"
                     >
-                      <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" />
+                      <path d="M9 4v6l-3 4v2h12v-2l-3-4V4" />
+                      <path d="M12 16v5" />
+                      <path d="M7 4h10" />
                     </svg>
                   </button>
 

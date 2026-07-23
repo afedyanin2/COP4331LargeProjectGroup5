@@ -1,6 +1,6 @@
 import {Link, NavLink, useLocation, useNavigate} from 'react-router-dom';
 
-function Navbar({ isLoggedIn, onLogout }) {
+function Navbar({ isLoggedIn, onLogout, theme }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isNotesPage = location.pathname === '/notes';
@@ -19,7 +19,7 @@ function Navbar({ isLoggedIn, onLogout }) {
       <div className="navbar-inner">
         <Link to="/" className="site-name">
         <img
-          src="/noteriety-icon.webp"
+          src={theme === 'dark' ? '/dark-theme.webp' : '/light-theme.webp'}
           alt="Noteriety logo"
           className="site-logo"
           width="42"

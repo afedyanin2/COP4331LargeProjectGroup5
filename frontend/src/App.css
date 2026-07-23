@@ -526,6 +526,10 @@ button:hover {
   background: var(--workspace-primary-light);
 }
 
+.workspace-note-card.menu-open {
+  z-index: 20;
+}
+
 .workspace-note-card-heading {
   display: flex;
   align-items: flex-start;
@@ -549,22 +553,6 @@ button:hover {
   color: var(--workspace-primary-dark);
   font-size: 0.7rem;
   font-weight: 800;
-}
-
-.note-reader-badges {
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.note-category-label {
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--workspace-surface-alt);
-  color: var(--workspace-muted);
-  font-size: 0.7rem;
-  font-weight: 700;
 }
 
 .workspace-note-preview {
@@ -632,7 +620,7 @@ button:hover {
   position: absolute;
   top: 38px;
   right: 0;
-  z-index: 50;
+  z-index: 30;
   width: 150px;
   padding: 5px;
   border: 1px solid var(--workspace-border);
@@ -682,6 +670,14 @@ button:hover {
 .note-reader {
   width: min(100%, 880px);
   margin: 0 auto;
+}
+
+.note-reader {
+  padding: 32px clamp(24px, 3vw, 40px);
+  border: 1px solid var(--workspace-border);
+  border-radius: 20px;
+  background: var(--workspace-surface);
+  box-shadow: var(--workspace-shadow-small);
 }
 
 .note-editor-actions,
@@ -834,13 +830,10 @@ button:hover {
 }
 
 .note-reader-content {
-  min-height: 420px;
+  min-height: 120px;
   margin-top: 22px;
-  padding: 30px;
-  border: 1px solid var(--workspace-border);
-  border-radius: 16px;
-  background: var(--workspace-surface);
-  box-shadow: var(--workspace-shadow-small);
+  padding-top: 24px;
+  border-top: 1px solid var(--workspace-border);
 }
 
 .note-reader-content p {
@@ -852,6 +845,7 @@ button:hover {
 }
 
 .note-reader-content.is-empty {
+  min-height: 220px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1035,26 +1029,14 @@ button:hover {
 .site-logo {
   width: 42px;
   height: 42px;
-  padding: 5px;
   object-fit: contain;
   flex-shrink: 0;
-
-  background-color: var(--site-surface-alt);
-
-  border: 1px solid var(--site-border);
-  border-radius: 13px;
-
-  box-shadow: var(--site-shadow-small);
-
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
 .site-name:hover .site-logo,
 .site-name:focus-visible .site-logo {
   transform: translateY(-2px);
-  box-shadow: var(--site-shadow-medium);
 }
 
 .active-link {
@@ -1558,14 +1540,7 @@ button:hover {
 .footer-logo {
   width: 34px;
   height: 34px;
-  padding: 4px;
-
   object-fit: contain;
-
-  background-color: var(--site-surface);
-
-  border: 1px solid var(--site-border);
-  border-radius: 10px;
 }
 
 .footer-inner p {
@@ -1683,11 +1658,6 @@ and (min-width: 701px) {
 
   justify-content: flex-end;
 }
-/* ============================================================
-   Redesign layer — notebook-inspired hero + preview card
-   Builds on the rules above; only overrides typography,
-   the hero preview card, and a few metadata elements.
-   ============================================================ */
 
 .site-name {
   font-family: var(--font-display);
@@ -1695,7 +1665,6 @@ and (min-width: 701px) {
   letter-spacing: -0.01em;
 }
 
-/* Serif display headline with an italic accent line */
 .home-hero h1 {
   font-family: var(--font-display);
   font-weight: 600;
@@ -1708,7 +1677,6 @@ and (min-width: 701px) {
   color: var(--site-primary-dark);
 }
 
-/* Eyebrows and metadata go mono — ties labels/dates/tags together */
 .home-eyebrow,
 .about-card-label,
 .preview-label {
@@ -1725,8 +1693,6 @@ and (min-width: 701px) {
   letter-spacing: 0.02em;
 }
 
-/* Signature element: the workspace preview card sits slightly
-   rotated, like a real index card, and levels out on hover. */
 .home-preview {
   transform: rotate(1.5deg);
   transition: transform 0.2s ease;
@@ -1736,8 +1702,6 @@ and (min-width: 701px) {
   transform: rotate(0deg);
 }
 
-/* Dog-ear fold in the top-right corner. .home-preview already
-   uses ::before for its background circle, so this uses ::after. */
 .home-preview::after {
   content: '';
   position: absolute;
@@ -1758,8 +1722,6 @@ html[data-theme='dark'] .home-preview::after {
   box-shadow: -2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Pinned note reads as "flagged" via a left accent instead of
-   only a flat alt-background */
 .preview-note-card-featured {
   border-left: 3px solid var(--site-primary);
 }

@@ -51,6 +51,7 @@ function handleThemeChange(newTheme) {
       <Navbar
         isLoggedIn={isLoggedIn}
         onLogout={handleLogout}
+        theme={theme}
       />
 
       <main className="main-content">
@@ -112,31 +113,18 @@ function handleThemeChange(newTheme) {
 
           <footer className="footer">
             <div className="footer-inner">
-            <Link to="/" className="footer-brand">
-            <img
-              src="/noteriety-icon.webp"
-              alt=""
-              className="footer-logo"
-              width="34"
-              height="34"
-              decoding="async"
-              aria-hidden="true"
-            />
+              <span></span>
+              <p>
+                Simple note-taking for everyday ideas.
+              </p>
 
-          <span>Noteriety</span>
-          </Link>
-
-          <p>
-          Simple note-taking for everyday ideas.
-          </p>
-
-          <span className="footer-copyright">
-          © 2026 Noteriety
-          </span>
-          </div>
+              <span className="footer-copyright">
+                © 2026 Noteriety
+              </span>
+            </div>
           </footer>
     </div>
-  );
+    );
 }
 
 export default App;

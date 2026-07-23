@@ -130,7 +130,7 @@ function HomePage({ isLoggedIn }) {
       <section className="home-features">
         <div className="section-heading">
           <span className="home-eyebrow">
-            Built for focus
+            Built for simplicity
           </span>
 
           <h2>
@@ -172,7 +172,7 @@ function HomePage({ isLoggedIn }) {
               03
             </span>
 
-            <h3>Acessible anywhere</h3>
+            <h3>Accessible anywhere</h3>
 
             <p>
               Log in to your account anywhere and
