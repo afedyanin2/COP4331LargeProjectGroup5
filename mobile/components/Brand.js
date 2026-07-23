@@ -1,12 +1,14 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { useTheme, fonts, eyebrow } from '../theme';
 
 // The rounded logo mark + serif wordmark used on splash and auth screens.
-export function Logo({ size = 'md' }) {
+// `tile` draws the rounded background square behind the logo (matches web).
+// Set tile={false} if the logo art already has its own shape/background.
+export function Logo({ size = 'md', tile = true }) {
   const { colors } = useTheme();
   const box = size === 'lg' ? 76 : 44;
   const radius = size === 'lg' ? 20 : 12;
-  const glyph = size === 'lg' ? 34 : 20;
+  const art = Math.round(box * (tile ? 0.62 : 1));
   const word = size === 'lg' ? 34 : 22;
 
   return (
@@ -16,14 +18,18 @@ export function Logo({ size = 'md' }) {
           width: box,
           height: box,
           borderRadius: radius,
-          backgroundColor: colors.surfaceAlt,
-          borderWidth: 1,
+          backgroundColor: tile ? colors.surfaceAlt : 'transparent',
+          borderWidth: tile ? 1 : 0,
           borderColor: colors.border,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Text style={{ fontSize: glyph, color: colors.primary }}>❋</Text>
+        <Image
+          source={require('../assets/logo.png')}
+          style={{ width: art, height: art }}
+          resizeMode="contain"
+        />
       </View>
       <Text
         style={{
