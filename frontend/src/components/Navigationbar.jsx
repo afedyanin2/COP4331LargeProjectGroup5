@@ -1,8 +1,7 @@
-import {Link, NavLink, useLocation, useNavigate} from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 
 function Navbar({ isLoggedIn, onLogout }) {
   const navigate = useNavigate();
-  const location = useLocation();
 
   function handleLogout() {
     onLogout();
@@ -17,13 +16,7 @@ function Navbar({ isLoggedIn, onLogout }) {
     <header className="navbar">
       <div className="navbar-inner">
         <Link to="/" className="site-name">
-          <img
-            src="/noteriety-icon.png"
-            alt=""
-            className="mobile-site-logo"
-            aria-hidden="true"
-          />
-          <span>Noteriety</span>
+          Noteriety
         </Link>
 
         <nav className="nav-links" aria-label="Main navigation">
@@ -45,15 +38,13 @@ function Navbar({ isLoggedIn, onLogout }) {
                 Settings
               </NavLink>
 
-              {location.pathname !== '/settings' && (
-                <button
-                  type="button"
-                  className="nav-button"
-                  onClick={handleLogout}
-                >
-                  Log Out
-                </button>
-              )}
+              <button
+                type="button"
+                className="nav-button"
+                onClick={handleLogout}
+              >
+                Log Out
+              </button>
             </>
           ) : (
             <>
