@@ -10,11 +10,12 @@ import {
   Platform,
 } from 'react-native';
 import { useTheme } from '../theme';
+import { commonStyles, createThemedStyles, shadows, spacing, typography } from '../styles';
 import { login, saveToken } from '../api';
 
 export default function LoginScreen({ onLoggedIn, onGoToRegister, onForgotPassword }) {
   const { colors } = useTheme();
-
+  const themed = createThemedStyles(colors);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,12 +23,8 @@ export default function LoginScreen({ onLoggedIn, onGoToRegister, onForgotPasswo
 
   async function handleLogin() {
     setError('');
-
-    if (!username.trim() || !password.trim()) {
-      setError('Please enter your username and password.');
-      return;
-    }
-
+    if (!username.trim() || !password.trim())
+      return setError('Please enter your username and password.');
     setBusy(true);
     try {
       const data = await login(username.trim(), password);
@@ -42,82 +39,71 @@ export default function LoginScreen({ onLoggedIn, onGoToRegister, onForgotPasswo
 
   return (
     <KeyboardAvoidingView
-      style={[styles.screen, { backgroundColor: colors.background }]}
+      style={themed.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.inner}>
-        <Text style={[styles.brand, { color: colors.primary }]}>Noteriety</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          Sign in to your notes
+      <View style={[styles.inner, commonStyles.centered]}>
+        <View style={[styles.brandMark, themed.alternateCard, shadows.small]}>
+          <Text style={[styles.brandMarkText, themed.primaryText]}>N</Text>
+        </View>
+        <Text style={[styles.brand, themed.text]}>Noteriety</Text>
+        <Text style={[styles.subtitle, themed.mutedText]}>
+          A calmer place for your busiest ideas.
         </Text>
 
-        {error ? (
-          <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
-        ) : null}
-
-        <Text style={[styles.label, { color: colors.text }]}>Username</Text>
-        <TextInput
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholder="username"
-          placeholderTextColor={colors.textMuted}
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              color: colors.text,
-            },
-          ]}
-        />
-
-        <Text style={[styles.label, { color: colors.text }]}>Password</Text>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          placeholder="password"
-          placeholderTextColor={colors.textMuted}
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              color: colors.text,
-            },
-          ]}
-        />
-
-        <Pressable
-          onPress={handleLogin}
-          disabled={busy}
-          style={({ pressed }) => [
-            styles.button,
-            { backgroundColor: colors.primary, opacity: pressed || busy ? 0.7 : 1 },
-          ]}
-        >
-          {busy ? (
-            <ActivityIndicator color={colors.onPrimary} />
-          ) : (
-            <Text style={[styles.buttonText, { color: colors.onPrimary }]}>
-              Log In
-            </Text>
-          )}
-        </Pressable>
-
-        <Pressable onPress={onForgotPassword} style={styles.forgotWrap}>
-          <Text style={{ color: colors.primary, fontSize: 14 }}>
-            Forgot password?
+        <View style={[commonStyles.card, themed.surfaceCard, shadows.small, styles.formCard]}>
+          <Text style={[typography.sectionTitle, themed.text]}>Welcome back</Text>
+          <Text style={[typography.bodySmall, themed.mutedText, styles.helper]}>
+            Sign in to continue to your notes.
           </Text>
-        </Pressable>
+          {error ? <Text style={[styles.error, themed.errorText]}>{error}</Text> : null}
 
-        <Pressable onPress={onGoToRegister} style={styles.linkWrap}>
-          <Text style={[styles.link, { color: colors.textMuted }]}>
-            Don't have an account?{' '}
-            <Text style={{ color: colors.primary }}>Sign up</Text>
+          <Text style={[styles.label, themed.text]}>USERNAME</Text>
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="username"
+            placeholderTextColor={colors.textMuted}
+            style={[commonStyles.input, themed.input]}
+          />
+          <Text style={[styles.label, themed.text]}>PASSWORD</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            placeholder="password"
+            placeholderTextColor={colors.textMuted}
+            style={[commonStyles.input, themed.input]}
+          />
+
+          <Pressable
+            onPress={handleLogin}
+            disabled={busy}
+            style={({ pressed }) => [
+              commonStyles.primaryButton,
+              themed.primaryButton,
+              shadows.button,
+              styles.button,
+              { opacity: pressed || busy ? 0.75 : 1 },
+            ]}
+          >
+            {busy ? (
+              <ActivityIndicator color={colors.onPrimary} />
+            ) : (
+              <Text style={[typography.button, themed.primaryButtonText]}>Log In</Text>
+            )}
+          </Pressable>
+          <Pressable onPress={onForgotPassword} style={styles.linkButton}>
+            <Text style={[styles.link, themed.primaryText]}>Forgot password?</Text>
+          </Pressable>
+        </View>
+
+        <Pressable onPress={onGoToRegister} style={styles.bottomLink}>
+          <Text style={[typography.bodySmall, themed.mutedText]}>
+            Don't have an account? <Text style={[styles.link, themed.primaryText]}>Sign up</Text>
           </Text>
         </Pressable>
       </View>
@@ -126,29 +112,32 @@ export default function LoginScreen({ onLoggedIn, onGoToRegister, onForgotPasswo
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  inner: { flex: 1, justifyContent: 'center', padding: 28 },
-  brand: { fontSize: 34, fontWeight: '700', textAlign: 'center' },
-  subtitle: { fontSize: 15, textAlign: 'center', marginTop: 6, marginBottom: 28 },
-  label: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 14 },
-  input: {
+  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 38 },
+  brandMark: {
+    width: 66,
+    height: 66,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  button: {
-    marginTop: 28,
-    borderRadius: 10,
-    paddingVertical: 15,
+    borderRadius: 18,
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
   },
-  buttonText: { fontSize: 16, fontWeight: '700' },
-  error: { fontSize: 14, textAlign: 'center', marginBottom: 4 },
-  forgotWrap: { marginTop: 16, alignItems: 'center' },
-  linkWrap: { marginTop: 14, alignItems: 'center' },
-  link: { fontSize: 14 },
+  brandMarkText: { fontSize: 31, fontWeight: '800' },
+  brand: {
+    marginTop: 14,
+    fontSize: 34,
+    lineHeight: 39,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: -0.7,
+  },
+  subtitle: { marginTop: 7, marginBottom: 28, textAlign: 'center', ...typography.bodySmall },
+  formCard: { padding: 22 },
+  helper: { marginTop: 6, marginBottom: 10 },
+  label: { marginTop: 16, marginBottom: 7, ...typography.label },
+  button: { marginTop: 24 },
+  linkButton: { alignSelf: 'center', marginTop: 17, padding: 6 },
+  bottomLink: { alignSelf: 'center', marginTop: 21, padding: 6 },
+  link: { fontWeight: '700', textDecorationLine: 'underline' },
+  error: { marginTop: 12, padding: 10, borderRadius: 9, fontSize: 14, textAlign: 'center' },
 });

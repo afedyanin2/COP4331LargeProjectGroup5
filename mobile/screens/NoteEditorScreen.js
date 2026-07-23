@@ -11,32 +11,23 @@ import {
   Alert,
 } from 'react-native';
 import { useTheme } from '../theme';
+import { commonStyles, createThemedStyles, shadows, typography } from '../styles';
 import { createNote, updateNote, deleteNote } from '../api';
 
-// One screen for both cases:
-//   note === null  -> creating
-//   note !== null  -> editing
 export default function NoteEditorScreen({ note, onDone, onCancel }) {
   const { colors } = useTheme();
+  const themed = createThemedStyles(colors);
   const isNew = !note;
-
   const [title, setTitle] = useState(note?.title || '');
   const [body, setBody] = useState(note?.body || '');
   const [busy, setBusy] = useState(false);
-
   async function handleSave() {
-    if (!title.trim() && !body.trim()) {
-      Alert.alert('Empty note', 'Add a title or some content first.');
-      return;
-    }
-
+    if (!title.trim() && !body.trim())
+      return Alert.alert('Empty note', 'Add a title or some content first.');
     setBusy(true);
     try {
-      if (isNew) {
-        await createNote(title.trim() || 'Untitled note', body);
-      } else {
-        await updateNote(note._id, title.trim() || 'Untitled note', body);
-      }
+      if (isNew) await createNote(title.trim() || 'Untitled note', body);
+      else await updateNote(note._id, title.trim() || 'Untitled note', body);
       onDone();
     } catch (e) {
       Alert.alert('Could not save', e.message);
@@ -44,7 +35,6 @@ export default function NoteEditorScreen({ note, onDone, onCancel }) {
       setBusy(false);
     }
   }
-
   function handleDelete() {
     Alert.alert('Delete note?', 'This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
@@ -65,65 +55,69 @@ export default function NoteEditorScreen({ note, onDone, onCancel }) {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.screen, { backgroundColor: colors.background }]}
+      style={themed.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.bar}>
-        <Pressable onPress={onCancel} hitSlop={10}>
-          <Text style={{ color: colors.textMuted, fontSize: 16 }}>Cancel</Text>
+      <View style={[commonStyles.headerRow, styles.bar]}>
+        <Pressable onPress={onCancel} style={styles.barAction}>
+          <Text style={[styles.barText, themed.mutedText]}>Cancel</Text>
         </Pressable>
-
-        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>
-          {isNew ? 'New Note' : 'Edit Note'}
-        </Text>
-
-        <Pressable onPress={handleSave} disabled={busy} hitSlop={10}>
+        <View style={styles.barCenter}>
+          <Text style={[typography.label, themed.primaryText]}>
+            {isNew ? 'CREATING' : 'EDITING'}
+          </Text>
+          <Text style={[styles.barTitle, themed.text]}>{isNew ? 'New Note' : 'Edit Note'}</Text>
+        </View>
+        <Pressable onPress={handleSave} disabled={busy} style={styles.barAction}>
           {busy ? (
             <ActivityIndicator color={colors.primary} />
           ) : (
-            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '700' }}>
-              Save
-            </Text>
+            <Text style={[styles.saveText, themed.primaryText]}>Save</Text>
           )}
         </Pressable>
       </View>
-
-      <TextInput
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Title"
-        placeholderTextColor={colors.textMuted}
-        style={[styles.title, { color: colors.text }]}
-      />
-
-      <TextInput
-        value={body}
-        onChangeText={setBody}
-        placeholder="Start writing..."
-        placeholderTextColor={colors.textMuted}
-        multiline
-        textAlignVertical="top"
-        style={[styles.body, { color: colors.text }]}
-      />
-
-      {!isNew && (
-        <Pressable onPress={handleDelete} style={styles.deleteWrap}>
-          <Text style={{ color: colors.error, fontSize: 15 }}>Delete note</Text>
+      <View style={[commonStyles.card, themed.surfaceCard, shadows.small, styles.editorCard]}>
+        <Text style={[styles.label, themed.text]}>TITLE</Text>
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Untitled note"
+          placeholderTextColor={colors.textMuted}
+          style={[commonStyles.input, themed.input, styles.title]}
+        />
+        <Text style={[styles.label, themed.text]}>NOTE</Text>
+        <TextInput
+          value={body}
+          onChangeText={setBody}
+          placeholder="Start writing your note..."
+          placeholderTextColor={colors.textMuted}
+          multiline
+          textAlignVertical="top"
+          style={[commonStyles.input, commonStyles.multilineInput, themed.input, styles.body]}
+        />
+      </View>
+      {!isNew ? (
+        <Pressable
+          onPress={handleDelete}
+          style={[commonStyles.secondaryButton, styles.deleteButton, { borderColor: colors.error }]}
+        >
+          <Text style={[styles.deleteText, themed.errorText]}>Delete note</Text>
         </Pressable>
-      )}
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
-
 const styles = StyleSheet.create({
-  screen: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
-  bar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  title: { fontSize: 24, fontWeight: '700', paddingVertical: 8 },
-  body: { flex: 1, fontSize: 16, lineHeight: 23, paddingTop: 8 },
-  deleteWrap: { paddingVertical: 18, alignItems: 'center' },
+  bar: { paddingTop: 52, paddingHorizontal: 16, paddingBottom: 16 },
+  barAction: { width: 62, minHeight: 42, alignItems: 'center', justifyContent: 'center' },
+  barText: { fontSize: 15, fontWeight: '600' },
+  saveText: { fontSize: 15, fontWeight: '800' },
+  barCenter: { alignItems: 'center' },
+  barTitle: { marginTop: 2, fontSize: 17, fontWeight: '700' },
+  editorCard: { flex: 1, marginHorizontal: 18, marginBottom: 18, padding: 18 },
+  label: { marginBottom: 7, ...typography.label },
+  title: { marginBottom: 20, fontSize: 18, fontWeight: '600' },
+  body: { flex: 1, minHeight: 280, lineHeight: 24 },
+  deleteButton: { marginHorizontal: 18, marginBottom: 28 },
+  deleteText: { fontSize: 15, fontWeight: '700' },
 });

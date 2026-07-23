@@ -10,11 +10,12 @@ import {
   Platform,
 } from 'react-native';
 import { useTheme } from '../theme';
+import { commonStyles, createThemedStyles, shadows, typography } from '../styles';
 import { forgotPassword } from '../api';
 
 export default function ForgotPasswordScreen({ onBack }) {
   const { colors } = useTheme();
-
+  const themed = createThemedStyles(colors);
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -22,11 +23,8 @@ export default function ForgotPasswordScreen({ onBack }) {
 
   async function handleSend() {
     setError('');
-    if (!email.trim() || !email.includes('@')) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-
+    if (!email.trim() || !email.includes('@'))
+      return setError('Please enter a valid email address.');
     setBusy(true);
     try {
       await forgotPassword(email.trim());
@@ -40,44 +38,24 @@ export default function ForgotPasswordScreen({ onBack }) {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.screen, { backgroundColor: colors.background }]}
+      style={themed.screen}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.inner}>
-        {sent ? (
-          <>
-            <Text style={[styles.heading, { color: colors.text }]}>
-              Check your inbox
-            </Text>
-            <Text style={[styles.body, { color: colors.textMuted }]}>
-              If an account exists for {email.trim()}, we've sent a link to reset
-              your password. Open it on this device or your computer.
-            </Text>
-            <Pressable
-              onPress={onBack}
-              style={({ pressed }) => [
-                styles.button,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Text style={[styles.buttonText, { color: colors.onPrimary }]}>
-                Back to log in
-              </Text>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <Text style={[styles.heading, { color: colors.text }]}>
-              Reset password
-            </Text>
-            <Text style={[styles.body, { color: colors.textMuted }]}>
-              Enter the email on your account and we'll send you a reset link.
-            </Text>
-
-            {error ? (
-              <Text style={[styles.error, { color: colors.error }]}>{error}</Text>
-            ) : null}
-
+      <View style={[styles.inner, commonStyles.centered]}>
+        <View style={[commonStyles.card, themed.surfaceCard, shadows.small, styles.card]}>
+          <View style={[styles.icon, themed.alternateCard]}>
+            <Text style={[styles.iconText, themed.primaryText]}>{sent ? '✓' : '?'}</Text>
+          </View>
+          <Text style={[typography.pageTitle, themed.text, styles.heading]}>
+            {sent ? 'Check your inbox' : 'Reset password'}
+          </Text>
+          <Text style={[typography.body, themed.mutedText, styles.body]}>
+            {sent
+              ? `If an account exists for ${email.trim()}, we've sent a reset link.`
+              : "Enter the email on your account and we'll send you a reset link."}
+          </Text>
+          {!sent && error ? <Text style={[styles.error, themed.errorText]}>{error}</Text> : null}
+          {!sent ? (
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -86,75 +64,55 @@ export default function ForgotPasswordScreen({ onBack }) {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  color: colors.text,
-                },
-              ]}
+              style={[commonStyles.input, themed.input]}
             />
-
-            <Pressable
-              onPress={handleSend}
-              disabled={busy}
-              style={({ pressed }) => [
-                styles.button,
-                {
-                  backgroundColor: colors.primary,
-                  opacity: pressed || busy ? 0.7 : 1,
-                },
-              ]}
-            >
-              {busy ? (
-                <ActivityIndicator color={colors.onPrimary} />
-              ) : (
-                <Text style={[styles.buttonText, { color: colors.onPrimary }]}>
-                  Send reset link
-                </Text>
-              )}
-            </Pressable>
-
-            <Pressable onPress={onBack} style={styles.linkWrap}>
-              <Text style={{ color: colors.textMuted, fontSize: 14 }}>
-                Back to log in
+          ) : null}
+          <Pressable
+            onPress={sent ? onBack : handleSend}
+            disabled={busy}
+            style={({ pressed }) => [
+              commonStyles.primaryButton,
+              themed.primaryButton,
+              shadows.button,
+              styles.button,
+              { opacity: pressed || busy ? 0.75 : 1 },
+            ]}
+          >
+            {busy ? (
+              <ActivityIndicator color={colors.onPrimary} />
+            ) : (
+              <Text style={[typography.button, themed.primaryButtonText]}>
+                {sent ? 'Back to log in' : 'Send reset link'}
               </Text>
+            )}
+          </Pressable>
+          {!sent ? (
+            <Pressable onPress={onBack} style={styles.backLink}>
+              <Text style={[styles.link, themed.mutedText]}>Back to log in</Text>
             </Pressable>
-          </>
-        )}
+          ) : null}
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  inner: { flex: 1, justifyContent: 'center', padding: 28 },
-  heading: { fontSize: 26, fontWeight: '700', textAlign: 'center' },
-  body: {
-    fontSize: 15,
-    textAlign: 'center',
-    marginTop: 10,
-    marginBottom: 20,
-    lineHeight: 21,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  button: {
-    marginTop: 22,
-    borderRadius: 10,
-    paddingVertical: 15,
+  inner: { flex: 1, justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 36 },
+  card: { padding: 23 },
+  icon: {
+    width: 58,
+    height: 58,
+    borderRadius: 16,
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
+    marginBottom: 18,
   },
-  buttonText: { fontSize: 16, fontWeight: '700' },
-  error: { fontSize: 14, textAlign: 'center', marginBottom: 10 },
-  linkWrap: { marginTop: 20, alignItems: 'center' },
+  iconText: { fontSize: 27, fontWeight: '800' },
+  heading: { textAlign: 'center' },
+  body: { textAlign: 'center', marginTop: 10, marginBottom: 22 },
+  button: { marginTop: 22 },
+  backLink: { alignSelf: 'center', marginTop: 16, padding: 6 },
+  link: { fontSize: 14, fontWeight: '600' },
+  error: { marginBottom: 12, textAlign: 'center', fontSize: 14 },
 });

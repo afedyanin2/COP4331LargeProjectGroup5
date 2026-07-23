@@ -32,6 +32,28 @@ function Root() {
   // so it doesn't flash by on fast devices.
   useEffect(() => {
     const started = Date.now();
+    
+    async function restoreSession() {
+      try {
+        const token = await getToken();
+
+        if (token) {
+          const account = await getMe();
+          setUser(account);
+        }
+      } catch {
+        await clearToken();
+        setUser(null);
+      } finally {
+        const elapsed = Date.now() - started;
+        const wait = Math.max(0, SPLASH_MS - elapsed);
+
+        setTimeout(() => {
+          setBooting(false);
+        }, wait);
+      }
+    }
+    
     getToken()
       .then((t) => {
         if (t) setUser({});
