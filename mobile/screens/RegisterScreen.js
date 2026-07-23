@@ -146,7 +146,7 @@ export default function RegisterScreen({ onRegistered, onGoToLogin }) {
           onChangeText={(v) => set('password', v)}
           secureTextEntry
           autoCapitalize="none"
-          placeholder="At least 6 characters"
+          placeholder="At least 8 characters"
           placeholderTextColor={colors.textMuted}
           style={inputStyle}
         />
