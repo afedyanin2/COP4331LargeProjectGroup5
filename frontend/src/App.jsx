@@ -12,6 +12,9 @@ import NoteTakingPage from './pages/NoteTakingPage';
 import NotFoundPage from './pages/NotFoundPage';
 import SettingsPage from './pages/SettingsPage';
 import SignupPage from './pages/SignUpPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import './App.css';
 
@@ -86,6 +89,11 @@ function handleThemeChange(newTheme) {
           />
 
           <Route
+            path="/verify-email"
+            element={<VerifyEmailPage />}
+          />
+
+          <Route
             path="/notes"
             element={
               <ProtectedRoute isLoggedIn={isLoggedIn}>
@@ -101,6 +109,16 @@ function handleThemeChange(newTheme) {
                 <SettingsPage onLogout={handleLogout} theme={theme} onThemeChange={handleThemeChange} />
               </ProtectedRoute>
             }
+          />
+
+          <Route
+            path="/forgot-password"
+            element={<ForgotPasswordPage />}
+          />
+
+          <Route
+            path="/reset-password"
+            element={<ResetPasswordPage />}
           />
 
           <Route
