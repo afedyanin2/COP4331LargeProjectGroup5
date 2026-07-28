@@ -1855,50 +1855,97 @@ app.delete(
 );
 
 // -----------------------------------------------------------------------------
-// Get all notes
+// Note helpers
+// -----------------------------------------------------------------------------
+
+function normalizeNotePayload(body = {}) {
+  const title = String(
+    body.title || ''
+  ).trim();
+
+  const noteBody = String(
+    body.body ??
+    body.content ??
+    ''
+  );
+
+  const category =
+    String(
+      body.category ||
+      'Uncategorized'
+    )
+      .trim()
+      .slice(0, 100) ||
+    'Uncategorized';
+
+  const tags = Array.isArray(body.tags)
+    ? [
+        ...new Set(
+          body.tags
+            .map((tag) =>
+              String(tag || '')
+                .trim()
+                .slice(0, 50)
+            )
+            .filter(Boolean)
+        )
+      ].slice(0, 25)
+    : [];
+
+  const drawing =
+    Array.isArray(body.drawing)
+      ? body.drawing
+      : [];
+
+  return {
+    title,
+    body: noteBody,
+    category,
+    tags,
+    drawing
+  };
+}
+
+function parseNoteDate(value, fallback) {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsedDate = new Date(value);
+
+  return Number.isNaN(
+    parsedDate.getTime()
+  )
+    ? fallback
+    : parsedDate;
+}
+
+// -----------------------------------------------------------------------------
+// Get all notes belonging to the authenticated user
 // -----------------------------------------------------------------------------
 
 app.get(
   '/api/notes',
   authenticateToken,
   async (req, res) => {
-    const categoryId = String(
-      req.query.categoryId || ''
-    ).trim();
-
     try {
       const db = getDatabase();
 
-      const filter = {
-        userId: req.userId,
-      };
-
-      if (categoryId === 'uncategorized') {
-        filter.categoryId = null;
-      } else if (categoryId) {
-        if (!isValidObjectId(categoryId)) {
-          return res.status(200).json({
-            notes: [],
-            error: 'Invalid category ID',
-          });
-        }
-
-        filter.categoryId = categoryId;
-      }
-
       const notes = await db
         .collection('Notes')
-        .find(filter)
+        .find({
+          userId: req.userId
+        })
         .sort({
           isPinned: -1,
           updatedAt: -1,
-          createdAt: -1,
+          createdAt: -1
         })
         .toArray();
 
       return res.status(200).json({
         notes,
-        error: '',
+        error: ''
       });
     } catch (error) {
       console.error(
@@ -1909,14 +1956,131 @@ app.get(
       return res.status(500).json({
         notes: [],
         error:
-          'Unable to load notes right now',
+          'Unable to load notes right now'
       });
     }
   }
 );
 
 // -----------------------------------------------------------------------------
-// Get one note
+// Import old browser notes into the authenticated account
+// -----------------------------------------------------------------------------
+
+app.post(
+  '/api/notes/import',
+  authenticateToken,
+  async (req, res) => {
+    const submittedNotes =
+      Array.isArray(req.body.notes)
+        ? req.body.notes
+        : [];
+
+    if (submittedNotes.length === 0) {
+      return res.status(200).json({
+        notes: [],
+        error:
+          'No notes were provided for import'
+      });
+    }
+
+    if (submittedNotes.length > 500) {
+      return res.status(200).json({
+        notes: [],
+        error:
+          'Too many notes were provided at once'
+      });
+    }
+
+    try {
+      const db = getDatabase();
+      const now = new Date();
+
+      const notesToInsert =
+        submittedNotes.map(
+          (submittedNote) => {
+            const note =
+              normalizeNotePayload(
+                submittedNote
+              );
+
+            return {
+              userId: req.userId,
+
+              title:
+                note.title ||
+                'Untitled Note',
+
+              body: note.body,
+              category: note.category,
+              tags: note.tags,
+              drawing: note.drawing,
+
+              isPinned: Boolean(
+                submittedNote.isPinned ??
+                submittedNote.pinned
+              ),
+
+              createdAt:
+                parseNoteDate(
+                  submittedNote.createdAt,
+                  now
+                ),
+
+              updatedAt:
+                parseNoteDate(
+                  submittedNote.updatedAt,
+                  now
+                )
+            };
+          }
+        );
+
+      const result = await db
+        .collection('Notes')
+        .insertMany(
+          notesToInsert
+        );
+
+      const insertedIds =
+        Object.values(
+          result.insertedIds
+        );
+
+      const importedNotes =
+        await db
+          .collection('Notes')
+          .find({
+            _id: {
+              $in: insertedIds
+            },
+
+            userId: req.userId
+          })
+          .toArray();
+
+      return res.status(200).json({
+        notes: importedNotes,
+        importedCount:
+          importedNotes.length,
+        error: ''
+      });
+    } catch (error) {
+      console.error(
+        'Import notes error:',
+        error
+      );
+
+      return res.status(500).json({
+        notes: [],
+        error:
+          'Unable to import notes right now'
+      });
+    }
+  }
+);
+
+// -----------------------------------------------------------------------------
+// Get one note belonging to the authenticated user
 // -----------------------------------------------------------------------------
 
 app.get(
@@ -1928,7 +2092,7 @@ app.get(
     if (!isValidObjectId(id)) {
       return res.status(200).json({
         note: null,
-        error: 'Invalid note ID',
+        error: 'Invalid note ID'
       });
     }
 
@@ -1938,20 +2102,23 @@ app.get(
       const note = await db
         .collection('Notes')
         .findOne({
-          _id: new ObjectId(id),
-          userId: req.userId,
+          _id:
+            new ObjectId(id),
+
+          userId:
+            req.userId
         });
 
       if (!note) {
         return res.status(200).json({
           note: null,
-          error: 'Note not found',
+          error: 'Note not found'
         });
       }
 
       return res.status(200).json({
         note,
-        error: '',
+        error: ''
       });
     } catch (error) {
       console.error(
@@ -1962,7 +2129,7 @@ app.get(
       return res.status(500).json({
         note: null,
         error:
-          'Unable to load the note right now',
+          'Unable to load the note right now'
       });
     }
   }
@@ -1976,81 +2143,63 @@ app.post(
   '/api/notes',
   authenticateToken,
   async (req, res) => {
-    const title = String(
-      req.body.title || ''
-    ).trim();
+    const note =
+      normalizeNotePayload(
+        req.body
+      );
 
-    const body = String(
-      req.body.body || ''
-    );
-
-    const categoryId = String(
-      req.body.categoryId || ''
-    ).trim();
-
-    if (!title) {
+    if (!note.title) {
       return res.status(200).json({
         id: -1,
         note: null,
         error:
-          'Note title is required',
-      });
-    }
-
-    if (
-      categoryId &&
-      !isValidObjectId(categoryId)
-    ) {
-      return res.status(200).json({
-        id: -1,
-        note: null,
-        error: 'Invalid category ID',
+          'Note title is required'
       });
     }
 
     try {
       const db = getDatabase();
-
-      if (categoryId) {
-        const category = await db
-          .collection('Categories')
-          .findOne({
-            _id: new ObjectId(categoryId),
-            userId: req.userId,
-          });
-
-        if (!category) {
-          return res.status(200).json({
-            id: -1,
-            note: null,
-            error: 'Category not found',
-          });
-        }
-      }
-
       const now = new Date();
 
-      const note = {
-        userId: req.userId,
-        title,
-        body,
-        categoryId: categoryId || null,
+      const newNote = {
+        userId:
+          req.userId,
+
+        title:
+          note.title,
+
+        body:
+          note.body,
+
+        category:
+          note.category,
+
+        tags:
+          note.tags,
+
+        drawing:
+          note.drawing,
+
         isPinned: false,
         createdAt: now,
-        updatedAt: now,
+        updatedAt: now
       };
 
       const result = await db
         .collection('Notes')
-        .insertOne(note);
+        .insertOne(newNote);
 
-      note._id = result.insertedId;
+      newNote._id =
+        result.insertedId;
 
       return res.status(200).json({
         id:
           result.insertedId.toString(),
-        note,
-        error: '',
+
+        note:
+          newNote,
+
+        error: ''
       });
     } catch (error) {
       console.error(
@@ -2062,7 +2211,7 @@ app.post(
         id: -1,
         note: null,
         error:
-          'Unable to create the note right now',
+          'Unable to create the note right now'
       });
     }
   }
@@ -2078,95 +2227,84 @@ app.put(
   async (req, res) => {
     const { id } = req.params;
 
-    const title = String(
-      req.body.title || ''
-    ).trim();
-
-    const body = String(
-      req.body.body || ''
-    );
-
-    const categoryId = String(
-      req.body.categoryId || ''
-    ).trim();
-
     if (!isValidObjectId(id)) {
       return res.status(200).json({
         note: null,
-        error: 'Invalid note ID',
+        error: 'Invalid note ID'
       });
     }
 
-    if (!title) {
+    const note =
+      normalizeNotePayload(
+        req.body
+      );
+
+    if (!note.title) {
       return res.status(200).json({
         note: null,
         error:
-          'Note title is required',
-      });
-    }
-
-    if (
-      categoryId &&
-      !isValidObjectId(categoryId)
-    ) {
-      return res.status(200).json({
-        note: null,
-        error: 'Invalid category ID',
+          'Note title is required'
       });
     }
 
     try {
       const db = getDatabase();
 
-      if (categoryId) {
-        const category = await db
-          .collection('Categories')
-          .findOne({
-            _id: new ObjectId(categoryId),
-            userId: req.userId,
-          });
-
-        if (!category) {
-          return res.status(200).json({
-            note: null,
-            error: 'Category not found',
-          });
-        }
-      }
-
       const result = await db
         .collection('Notes')
         .findOneAndUpdate(
           {
-            _id: new ObjectId(id),
-            userId: req.userId,
+            _id:
+              new ObjectId(id),
+
+            userId:
+              req.userId
           },
+
           {
             $set: {
-              title,
-              body,
-              categoryId: categoryId || null,
-              updatedAt: new Date(),
-            },
+              title:
+                note.title,
+
+              body:
+                note.body,
+
+              category:
+                note.category,
+
+              tags:
+                note.tags,
+
+              drawing:
+                note.drawing,
+
+              updatedAt:
+                new Date()
+            }
           },
+
           {
-            returnDocument: 'after',
+            returnDocument:
+              'after'
           }
         );
 
       const updatedNote =
-        result?.value ?? result;
+        result?.value ??
+        result;
 
       if (!updatedNote) {
         return res.status(200).json({
           note: null,
-          error: 'Note not found',
+          error: 'Note not found'
         });
       }
 
       return res.status(200).json({
-        note: updatedNote,
-        error: '',
+        note:
+          updatedNote,
+
+        error: ''
       });
     } catch (error) {
       console.error(
@@ -2177,7 +2315,7 @@ app.put(
       return res.status(500).json({
         note: null,
         error:
-          'Unable to update the note right now',
+          'Unable to update the note right now'
       });
     }
   }
@@ -2192,14 +2330,18 @@ app.put(
   authenticateToken,
   async (req, res) => {
     const { id } = req.params;
-    const isPinned = Boolean(req.body.isPinned);
 
     if (!isValidObjectId(id)) {
       return res.status(200).json({
         note: null,
-        error: 'Invalid note ID',
+        error: 'Invalid note ID'
       });
     }
+
+    const isPinned =
+      Boolean(
+        req.body.isPinned
+      );
 
     try {
       const db = getDatabase();
@@ -2208,44 +2350,55 @@ app.put(
         .collection('Notes')
         .findOneAndUpdate(
           {
-            _id: new ObjectId(id),
-            userId: req.userId,
+            _id:
+              new ObjectId(id),
+
+            userId:
+              req.userId
           },
+
           {
             $set: {
               isPinned,
-              updatedAt: new Date(),
-            },
+
+              updatedAt:
+                new Date()
+            }
           },
+
           {
-            returnDocument: 'after',
+            returnDocument:
+              'after'
           }
         );
 
       const updatedNote =
-        result?.value ?? result;
+        result?.value ??
+        result;
 
       if (!updatedNote) {
         return res.status(200).json({
           note: null,
-          error: 'Note not found',
+          error: 'Note not found'
         });
       }
 
       return res.status(200).json({
-        note: updatedNote,
-        error: '',
+        note:
+          updatedNote,
+
+        error: ''
       });
     } catch (error) {
       console.error(
-        'Update pinned status error:',
+        'Pin note error:',
         error
       );
 
       return res.status(500).json({
         note: null,
         error:
-          'Unable to update the pinned status right now',
+          'Unable to update the pinned status'
       });
     }
   }
@@ -2263,7 +2416,7 @@ app.delete(
 
     if (!isValidObjectId(id)) {
       return res.status(200).json({
-        error: 'Invalid note ID',
+        error: 'Invalid note ID'
       });
     }
 
@@ -2273,20 +2426,23 @@ app.delete(
       const result = await db
         .collection('Notes')
         .deleteOne({
-          _id: new ObjectId(id),
-          userId: req.userId,
+          _id:
+            new ObjectId(id),
+
+          userId:
+            req.userId
         });
 
       if (
         result.deletedCount === 0
       ) {
         return res.status(200).json({
-          error: 'Note not found',
+          error: 'Note not found'
         });
       }
 
       return res.status(200).json({
-        error: '',
+        error: ''
       });
     } catch (error) {
       console.error(
@@ -2296,7 +2452,7 @@ app.delete(
 
       return res.status(500).json({
         error:
-          'Unable to delete the note right now',
+          'Unable to delete the note right now'
       });
     }
   }
