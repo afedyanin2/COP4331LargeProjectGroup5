@@ -35,6 +35,17 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # Networking (api.dart) and local token/email storage.
+  http: ^1.2.0
+  shared_preferences: ^2.2.0
+
+  # Share/export from NoteEditorScreen and NotesScreen.
+  share_plus: ^7.2.0
+
+  # ThemeController (light/dark/system) consumed via provider in
+  # SettingsScreen and main.dart.
+  provider: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -56,6 +67,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/images/light-theme.webp
+    - assets/images/dark-theme.webp
 
   # To add assets to your application, add an assets section, like this:
   # assets:

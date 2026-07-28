@@ -31,7 +31,11 @@ class Logo extends StatelessWidget {
             border: tile ? Border.all(color: colors.border) : null,
           ),
           child: Image.asset(
-            isDark ? 'assets/logo-dark.png' : 'assets/logo-light.png',
+
+            // import logos
+            isDark
+                ? 'assets/images/dark-theme.webp'
+                : 'assets/images/light-theme.webp',
             width: art,
             height: art,
             fit: BoxFit.contain,
