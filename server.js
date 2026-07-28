@@ -60,10 +60,7 @@ if (!RESEND_API_KEY) {
 // -----------------------------------------------------------------------------
 
 const SALT_ROUNDS = 12;
-const VERIFICATION_CODE_TTL_MS = 60 * 60 * 1000;
-const VERIFICATION_CODE_LENGTH = 6;
-const MAX_VERIFICATION_ATTEMPTS = 5;
-const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
+const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const JWT_EXPIRES_IN = '7d';
 const MIN_PASSWORD_LENGTH = 8;
@@ -120,64 +117,6 @@ function getDatabase() {
 
 function generateToken() {
   return crypto.randomBytes(32).toString('hex');
-}
-
-function generateVerificationCode() {
-  const upperLimit = 10 ** VERIFICATION_CODE_LENGTH;
-
-  return crypto
-    .randomInt(0, upperLimit)
-    .toString()
-    .padStart(VERIFICATION_CODE_LENGTH, '0');
-}
-
-function hashVerificationCode(email, code) {
-  return crypto
-    .createHmac('sha256', JWT_SECRET)
-    .update(`${normalizeEmail(email)}:${String(code)}`)
-    .digest('hex');
-}
-
-function verificationCodeMatches(
-  email,
-  submittedCode,
-  expectedHash
-) {
-  if (!expectedHash) {
-    return false;
-  }
-
-  const submittedHash = hashVerificationCode(
-    email,
-    submittedCode
-  );
-
-  const submittedBuffer = Buffer.from(
-    submittedHash,
-    'hex'
-  );
-
-  const expectedBuffer = Buffer.from(
-    expectedHash,
-    'hex'
-  );
-
-  return (
-    submittedBuffer.length === expectedBuffer.length &&
-    crypto.timingSafeEqual(
-      submittedBuffer,
-      expectedBuffer
-    )
-  );
-}
-
-function escapeHtml(value) {
-  return String(value || '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
 }
 
 function signJwt(userId) {
@@ -244,56 +183,7 @@ async function sendMail(to, subject, html) {
   }
 }
 
-async function sendVerificationCodeEmail(
-  email,
-  displayName,
-  verificationCode,
-  expiresAt
-) {
-  const safeDisplayName = escapeHtml(
-    displayName || 'there'
-  );
-
-  const expirationTime = new Intl.DateTimeFormat(
-    'en-US',
-    {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZone: 'America/New_York',
-    }
-  ).format(expiresAt);
-
-  await sendMail(
-    email,
-    'Your Noteriety verification code',
-    `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1a2b22;">
-        <p>Hi ${safeDisplayName},</p>
-
-        <p>
-          Enter this six-digit code to verify your
-          Noteriety email address:
-        </p>
-
-        <p style="font-size: 32px; font-weight: 700; letter-spacing: 8px; margin: 24px 0;">
-          ${verificationCode}
-        </p>
-
-        <p>
-          This registration expires at
-          ${escapeHtml(expirationTime)} ET, one hour after it was created.
-        </p>
-
-        <p>
-          If you did not create a Noteriety account,
-          you can ignore this email.
-        </p>
-      </div>
-    `
-  );
-}
-
-async function authenticateToken(req, res, next) {
+function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization;
 
   const token =
@@ -309,56 +199,20 @@ async function authenticateToken(req, res, next) {
     });
   }
 
-  try {
-    const payload = jwt.verify(
-      token,
-      JWT_SECRET
-    );
+  jwt.verify(
+    token,
+    JWT_SECRET,
+    (error, payload) => {
+      if (error || !payload?.userId) {
+        return res.status(401).json({
+          error: 'Invalid or expired token',
+        });
+      }
 
-    if (
-      !payload?.userId ||
-      !isValidObjectId(payload.userId)
-    ) {
-      return res.status(401).json({
-        error: 'Invalid or expired token',
-      });
+      req.userId = payload.userId;
+      next();
     }
-
-    const user = await getDatabase()
-      .collection('Users')
-      .findOne(
-        {
-          _id: new ObjectId(
-            payload.userId
-          ),
-        },
-        {
-          projection: {
-            emailVerified: 1,
-          },
-        }
-      );
-
-    if (!user) {
-      return res.status(401).json({
-        error: 'User account not found',
-      });
-    }
-
-    if (!user.emailVerified) {
-      return res.status(403).json({
-        error:
-          'Please verify your email before accessing your account.',
-      });
-    }
-
-    req.userId = payload.userId;
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      error: 'Invalid or expired token',
-    });
-  }
+  );
 }
 
 // -----------------------------------------------------------------------------
@@ -419,18 +273,6 @@ const resendVerificationLimiter = rateLimit({
   },
 });
 
-const verifyEmailLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-
-  message: {
-    error:
-      'Too many verification attempts. Please try again later.',
-  },
-});
-
 // -----------------------------------------------------------------------------
 // Health route
 // -----------------------------------------------------------------------------
@@ -461,7 +303,7 @@ app.post(
     );
 
     if (!username || !password) {
-      return res.status(400).json({
+      return res.status(200).json({
         id: -1,
         firstName: '',
         lastName: '',
@@ -480,7 +322,7 @@ app.post(
         });
 
       if (!user) {
-        return res.status(401).json({
+        return res.status(200).json({
           id: -1,
           firstName: '',
           lastName: '',
@@ -496,40 +338,12 @@ app.post(
         );
 
       if (!passwordMatches) {
-        return res.status(401).json({
+        return res.status(200).json({
           id: -1,
           firstName: '',
           lastName: '',
           error:
             'Invalid username or password',
-        });
-      }
-
-      if (!user.emailVerified) {
-        const registrationExpired =
-          !user.createdAt ||
-          new Date(user.createdAt).getTime() <=
-            Date.now() -
-              VERIFICATION_CODE_TTL_MS;
-
-        if (registrationExpired) {
-          await db
-            .collection('Users')
-            .deleteOne({
-              _id: user._id,
-              emailVerified: {
-                $ne: true,
-              },
-            });
-        }
-
-        return res.status(403).json({
-          id: -1,
-          firstName: '',
-          lastName: '',
-          error: registrationExpired
-            ? 'Your unverified registration expired. Please sign up again.'
-            : 'Please verify your email before logging in.',
         });
       }
 
@@ -541,7 +355,9 @@ app.post(
         lastName: user.lastName || '',
         username: user.username,
         email: user.email || '',
-        emailVerified: true,
+        emailVerified: Boolean(
+          user.emailVerified
+        ),
         token,
         error: '',
       });
@@ -588,7 +404,7 @@ app.post(
     );
 
     if (!username || !password || !email) {
-      return res.status(400).json({
+      return res.status(200).json({
         id: -1,
         firstName: '',
         lastName: '',
@@ -601,7 +417,7 @@ app.post(
       password.length <
       MIN_PASSWORD_LENGTH
     ) {
-      return res.status(400).json({
+      return res.status(200).json({
         id: -1,
         firstName: '',
         lastName: '',
@@ -612,43 +428,10 @@ app.post(
 
     try {
       const db = getDatabase();
-      const users = db.collection('Users');
-      const pendingRegistrations =
-        db.collection(
-          'PendingRegistrations'
-        );
 
-      const now = new Date();
-
-      await pendingRegistrations.deleteMany({
-        expiresAt: {
-          $lte: now,
-        },
-      });
-
-      const existingUser = await users.findOne({
-        $or: [
-          {
-            username,
-          },
-          {
-            email,
-          },
-        ],
-      });
-
-      if (existingUser) {
-        return res.status(409).json({
-          id: -1,
-          firstName: '',
-          lastName: '',
-          error:
-            'Username or email already in use',
-        });
-      }
-
-      const existingPending =
-        await pendingRegistrations.findOne({
+      const existingUser = await db
+        .collection('Users')
+        .findOne({
           $or: [
             {
               username,
@@ -659,19 +442,13 @@ app.post(
           ],
         });
 
-      if (
-        existingPending &&
-        (
-          existingPending.username !== username ||
-          existingPending.email !== email
-        )
-      ) {
-        return res.status(409).json({
+      if (existingUser) {
+        return res.status(200).json({
           id: -1,
           firstName: '',
           lastName: '',
           error:
-            'Username or email is temporarily reserved by another pending registration',
+            'Username or email already in use',
         });
       }
 
@@ -681,90 +458,85 @@ app.post(
           SALT_ROUNDS
         );
 
-      const verificationCode =
-        generateVerificationCode();
+      const verificationToken =
+        generateToken();
 
-      const expiresAt = new Date(
-        Date.now() +
-          VERIFICATION_CODE_TTL_MS
-      );
-
-      const pendingRegistration = {
-        username,
-        password: hashedPassword,
-        firstName,
-        lastName,
-        email,
-        verificationCodeHash:
-          hashVerificationCode(
-            email,
-            verificationCode
-          ),
-        verificationAttempts: 0,
-        lastCodeSentAt: now,
-        createdAt: now,
-        updatedAt: now,
-        expiresAt,
-      };
-
-      let pendingId;
-
-      if (existingPending) {
-        pendingId = existingPending._id;
-
-        await pendingRegistrations.updateOne(
-          {
-            _id: existingPending._id,
-          },
-          {
-            $set: pendingRegistration,
-          }
+      const verificationTokenExpiry =
+        new Date(
+          Date.now() +
+            VERIFY_TOKEN_TTL_MS
         );
-      } else {
-        const result =
-          await pendingRegistrations.insertOne(
-            pendingRegistration
-          );
 
-        pendingId = result.insertedId;
-      }
+      const result = await db
+        .collection('Users')
+        .insertOne({
+          username,
+          password: hashedPassword,
+          firstName,
+          lastName,
+          email,
+          emailVerified: false,
+          verificationToken,
+          verificationTokenExpiry,
+          resetToken: null,
+          resetTokenExpiry: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+      const verifyLink =
+        `${FRONTEND_URL}/verify-email` +
+        `?token=${encodeURIComponent(
+          verificationToken
+        )}`;
 
       try {
-        await sendVerificationCodeEmail(
+        await sendMail(
           email,
-          firstName || username,
-          verificationCode,
-          expiresAt
+          'Verify your Noteriety email',
+          `
+            <p>Hi ${firstName || username},</p>
+
+            <p>
+              Thanks for signing up for
+              Noteriety.
+            </p>
+
+            <p>
+              Please verify your email by
+              clicking the link below:
+            </p>
+
+            <p>
+              <a href="${verifyLink}">
+                ${verifyLink}
+              </a>
+            </p>
+
+            <p>
+              This link expires in 24 hours.
+            </p>
+          `
         );
       } catch (mailError) {
-        await pendingRegistrations.deleteOne({
-          _id: pendingId,
-        });
-
         console.error(
-          'Failed to send verification code:',
+          'Failed to send verification email:',
           mailError.message
         );
-
-        return res.status(503).json({
-          id: -1,
-          firstName: '',
-          lastName: '',
-          error:
-            'The account was not created because the verification email could not be sent. Please try again.',
-        });
       }
 
+      const token = signJwt(
+        result.insertedId
+      );
+
       return res.status(200).json({
-        id: null,
+        id: result.insertedId.toString(),
         firstName,
         lastName,
         username,
         email,
         emailVerified: false,
-        expiresAt: expiresAt.toISOString(),
-        message:
-          'A six-digit verification code was sent to your email.',
+        token,
         error: '',
       });
     } catch (error) {
@@ -772,16 +544,6 @@ app.post(
         'Registration error:',
         error
       );
-
-      if (error?.code === 11000) {
-        return res.status(409).json({
-          id: -1,
-          firstName: '',
-          lastName: '',
-          error:
-            'Username or email already in use',
-        });
-      }
 
       return res.status(500).json({
         id: -1,
@@ -795,207 +557,71 @@ app.post(
 );
 
 // -----------------------------------------------------------------------------
-// Verify email code and create the real user
+// Verify email
 // -----------------------------------------------------------------------------
 
-app.post(
+app.get(
   '/api/verify-email',
-  verifyEmailLimiter,
   async (req, res) => {
-    const email = normalizeEmail(
-      req.body.email
-    );
-
-    const code = String(
-      req.body.code || ''
+    const token = String(
+      req.query.token || ''
     ).trim();
 
-    if (
-      !email ||
-      !new RegExp(
-        `^\\d{${VERIFICATION_CODE_LENGTH}}$`
-      ).test(code)
-    ) {
-      return res.status(400).json({
+    if (!token) {
+      return res.status(200).json({
         error:
-          'Email and a valid six-digit verification code are required',
+          'Missing verification token',
       });
     }
 
     try {
       const db = getDatabase();
-      const users = db.collection('Users');
-      const pendingRegistrations =
-        db.collection(
-          'PendingRegistrations'
-        );
 
-      const pending =
-        await pendingRegistrations.findOne({
-          email,
+      const user = await db
+        .collection('Users')
+        .findOne({
+          verificationToken: token,
         });
 
-      if (!pending) {
-        return res.status(410).json({
+      if (!user) {
+        return res.status(200).json({
           error:
-            'This registration is invalid or has expired. Please sign up again.',
+            'Invalid or expired verification link',
         });
       }
 
       if (
-        !pending.expiresAt ||
-        new Date(pending.expiresAt) <=
-          new Date()
+        !user.verificationTokenExpiry ||
+        new Date(
+          user.verificationTokenExpiry
+        ) < new Date()
       ) {
-        await pendingRegistrations.deleteOne({
-          _id: pending._id,
-        });
-
-        return res.status(410).json({
+        return res.status(200).json({
           error:
-            'This registration expired after one hour. Please sign up again.',
+            'Verification link has expired',
         });
       }
 
-      const codeMatches =
-        verificationCodeMatches(
-          email,
-          code,
-          pending.verificationCodeHash
-        );
-
-      if (!codeMatches) {
-        const nextAttemptCount =
-          Number(
-            pending.verificationAttempts || 0
-          ) + 1;
-
-        if (
-          nextAttemptCount >=
-          MAX_VERIFICATION_ATTEMPTS
-        ) {
-          await pendingRegistrations.deleteOne({
-            _id: pending._id,
-          });
-
-          return res.status(429).json({
-            error:
-              'Too many incorrect codes. This pending registration was deleted; please sign up again.',
-          });
-        }
-
-        await pendingRegistrations.updateOne(
+      await db
+        .collection('Users')
+        .updateOne(
           {
-            _id: pending._id,
+            _id: user._id,
           },
           {
             $set: {
-              verificationAttempts:
-                nextAttemptCount,
+              emailVerified: true,
               updatedAt: new Date(),
+            },
+
+            $unset: {
+              verificationToken: '',
+              verificationTokenExpiry: '',
             },
           }
         );
 
-        return res.status(400).json({
-          error:
-            `Incorrect verification code. ${MAX_VERIFICATION_ATTEMPTS - nextAttemptCount} attempts remaining.`,
-        });
-      }
-
-      const conflict = await users.findOne({
-        $or: [
-          {
-            username: pending.username,
-          },
-          {
-            email: pending.email,
-          },
-        ],
-      });
-
-      if (conflict) {
-        await pendingRegistrations.deleteOne({
-          _id: pending._id,
-        });
-
-        return res.status(409).json({
-          error:
-            'That username or email is already registered. Please log in or choose different account details.',
-        });
-      }
-
-      const now = new Date();
-
-      let result;
-
-      try {
-        result = await users.insertOne({
-          username: pending.username,
-          password: pending.password,
-          firstName:
-            pending.firstName || '',
-          lastName:
-            pending.lastName || '',
-          email: pending.email,
-          emailVerified: true,
-          resetToken: null,
-          resetTokenExpiry: null,
-          registrationStartedAt:
-            pending.createdAt || now,
-          createdAt: now,
-          updatedAt: now,
-        });
-      } catch (insertError) {
-        if (insertError?.code !== 11000) {
-          throw insertError;
-        }
-
-        const alreadyVerifiedUser =
-          await users.findOne({
-            username: pending.username,
-            email: pending.email,
-            emailVerified: true,
-          });
-
-        if (!alreadyVerifiedUser) {
-          throw insertError;
-        }
-
-        await pendingRegistrations.deleteOne({
-          _id: pending._id,
-        });
-
-        return res.status(200).json({
-          id:
-            alreadyVerifiedUser._id.toString(),
-          username: pending.username,
-          email: pending.email,
-          emailVerified: true,
-          message:
-            'Your email has already been verified. You can now log in.',
-          error: '',
-        });
-      }
-
-      try {
-        await pendingRegistrations.deleteOne({
-          _id: pending._id,
-        });
-      } catch (cleanupError) {
-        console.error(
-          'Verified user created, but pending registration cleanup failed:',
-          cleanupError
-        );
-      }
-
       return res.status(200).json({
-        id: result.insertedId.toString(),
-        username: pending.username,
-        email: pending.email,
-        emailVerified: true,
-        message:
-          'Your email has been verified. You can now log in.',
         error: '',
       });
     } catch (error) {
@@ -1003,13 +629,6 @@ app.post(
         'Email verification error:',
         error
       );
-
-      if (error?.code === 11000) {
-        return res.status(409).json({
-          error:
-            'That username or email is already registered.',
-        });
-      }
 
       return res.status(500).json({
         error:
@@ -1019,16 +638,8 @@ app.post(
   }
 );
 
-// Old email links are intentionally no longer accepted.
-app.get('/api/verify-email', (req, res) => {
-  return res.status(410).json({
-    error:
-      'Verification links are no longer used. Enter the six-digit code from your email instead.',
-  });
-});
-
 // -----------------------------------------------------------------------------
-// Resend verification code
+// Resend verification email
 // -----------------------------------------------------------------------------
 
 app.post(
@@ -1040,141 +651,94 @@ app.post(
     );
 
     if (!email) {
-      return res.status(400).json({
+      return res.status(200).json({
         error: 'Email is required',
       });
     }
 
     try {
       const db = getDatabase();
-      const pendingRegistrations =
-        db.collection(
-          'PendingRegistrations'
-        );
 
-      const pending =
-        await pendingRegistrations.findOne({
+      const user = await db
+        .collection('Users')
+        .findOne({
           email,
         });
 
-      if (!pending) {
-        return res.status(410).json({
-          error:
-            'No active registration was found. Please sign up again.',
-        });
-      }
-
+      // Always returns success so account
+      // existence is not exposed.
       if (
-        !pending.expiresAt ||
-        new Date(pending.expiresAt) <=
-          new Date()
+        user &&
+        !user.emailVerified
       ) {
-        await pendingRegistrations.deleteOne({
-          _id: pending._id,
-        });
+        const verificationToken =
+          generateToken();
 
-        return res.status(410).json({
-          error:
-            'This registration expired after one hour. Please sign up again.',
-        });
-      }
+        const verificationTokenExpiry =
+          new Date(
+            Date.now() +
+              VERIFY_TOKEN_TTL_MS
+          );
 
-      const lastCodeSentAt = pending.lastCodeSentAt
-        ? new Date(
-            pending.lastCodeSentAt
-          ).getTime()
-        : 0;
-
-      const millisecondsSinceLastCode =
-        Date.now() - lastCodeSentAt;
-
-      if (
-        millisecondsSinceLastCode <
-        VERIFICATION_RESEND_COOLDOWN_MS
-      ) {
-        const secondsRemaining = Math.ceil(
-          (
-            VERIFICATION_RESEND_COOLDOWN_MS -
-            millisecondsSinceLastCode
-          ) / 1000
-        );
-
-        return res.status(429).json({
-          error:
-            `Please wait ${secondsRemaining} seconds before requesting another code.`,
-        });
-      }
-
-      const verificationCode =
-        generateVerificationCode();
-
-      const previousCodeHash =
-        pending.verificationCodeHash;
-
-      const previousLastCodeSentAt =
-        pending.lastCodeSentAt || null;
-
-      const now = new Date();
-
-      await pendingRegistrations.updateOne(
-        {
-          _id: pending._id,
-        },
-        {
-          $set: {
-            verificationCodeHash:
-              hashVerificationCode(
-                email,
-                verificationCode
-              ),
-            verificationAttempts: 0,
-            lastCodeSentAt: now,
-            updatedAt: now,
-          },
-        }
-      );
-
-      try {
-        await sendVerificationCodeEmail(
-          email,
-          pending.firstName ||
-            pending.username,
-          verificationCode,
-          new Date(pending.expiresAt)
-        );
-      } catch (mailError) {
-        await pendingRegistrations.updateOne(
-          {
-            _id: pending._id,
-          },
-          {
-            $set: {
-              verificationCodeHash:
-                previousCodeHash,
-              lastCodeSentAt:
-                previousLastCodeSentAt,
-              updatedAt: new Date(),
+        await db
+          .collection('Users')
+          .updateOne(
+            {
+              _id: user._id,
             },
-          }
-        );
+            {
+              $set: {
+                verificationToken,
+                verificationTokenExpiry,
+                updatedAt: new Date(),
+              },
+            }
+          );
 
-        console.error(
-          'Failed to resend verification code:',
-          mailError.message
-        );
+        const verifyLink =
+          `${FRONTEND_URL}/verify-email` +
+          `?token=${encodeURIComponent(
+            verificationToken
+          )}`;
 
-        return res.status(503).json({
-          error:
-            'Unable to send another verification code right now.',
-        });
+        try {
+          await sendMail(
+            email,
+            'Verify your Noteriety email',
+            `
+              <p>
+                Hi ${
+                  user.firstName ||
+                  user.username
+                },
+              </p>
+
+              <p>
+                Here is a new verification
+                link:
+              </p>
+
+              <p>
+                <a href="${verifyLink}">
+                  ${verifyLink}
+                </a>
+              </p>
+
+              <p>
+                This link expires in 24
+                hours.
+              </p>
+            `
+          );
+        } catch (mailError) {
+          console.error(
+            'Failed to resend verification email:',
+            mailError.message
+          );
+        }
       }
 
       return res.status(200).json({
-        expiresAt: new Date(
-          pending.expiresAt
-        ).toISOString(),
-        message:
-          'A new verification code was sent.',
         error: '',
       });
     } catch (error) {
@@ -1185,7 +749,7 @@ app.post(
 
       return res.status(500).json({
         error:
-          'Unable to resend the verification code right now',
+          'Unable to resend the verification email right now',
       });
     }
   }
@@ -1791,6 +1355,8 @@ app.put(
 // -----------------------------------------------------------------------------
 // Delete category
 // -----------------------------------------------------------------------------
+// Notes in this category are not deleted - they are unassigned back to
+// "Uncategorized" so users don't lose notes just from deleting a category.
 
 app.delete(
   '/api/categories/:id',
@@ -1868,7 +1434,6 @@ app.get(
 
     try {
       const db = getDatabase();
-
       const filter = {
         userId: req.userId,
       };
@@ -1882,13 +1447,14 @@ app.get(
             error: 'Invalid category ID',
           });
         }
-
         filter.categoryId = categoryId;
       }
 
       const notes = await db
         .collection('Notes')
         .find(filter)
+							 
+		  
         .sort({
           isPinned: -1,
           updatedAt: -1,
@@ -1997,15 +1563,14 @@ app.post(
       });
     }
 
-    if (
-      categoryId &&
-      !isValidObjectId(categoryId)
-    ) {
-      return res.status(200).json({
-        id: -1,
-        note: null,
-        error: 'Invalid category ID',
-      });
+    if (categoryId) {
+      if (!isValidObjectId(categoryId)) {
+        return res.status(200).json({
+          id: -1,
+          note: null,
+          error: 'Invalid category ID',
+        });
+      }
     }
 
     try {
@@ -2105,14 +1670,13 @@ app.put(
       });
     }
 
-    if (
-      categoryId &&
-      !isValidObjectId(categoryId)
-    ) {
-      return res.status(200).json({
-        note: null,
-        error: 'Invalid category ID',
-      });
+    if (categoryId) {
+      if (!isValidObjectId(categoryId)) {
+        return res.status(200).json({
+          note: null,
+          error: 'Invalid category ID',
+        });
+      }
     }
 
     try {
@@ -2154,6 +1718,11 @@ app.put(
           }
         );
 
+      /*
+       * MongoDB driver versions may return either:
+       * - the updated document directly, or
+       * - an object containing a value property.
+       */
       const updatedNote =
         result?.value ?? result;
 
@@ -2222,8 +1791,7 @@ app.put(
           }
         );
 
-      const updatedNote =
-        result?.value ?? result;
+      const updatedNote = result?.value ?? result;
 
       if (!updatedNote) {
         return res.status(200).json({
@@ -2237,15 +1805,11 @@ app.put(
         error: '',
       });
     } catch (error) {
-      console.error(
-        'Update pinned status error:',
-        error
-      );
+      console.error('Update pinned status error:', error);
 
       return res.status(500).json({
         note: null,
-        error:
-          'Unable to update the pinned status right now',
+        error: 'Unable to update the pinned status right now',
       });
     }
   }
@@ -2346,141 +1910,6 @@ app.use(
 
 let server;
 
-async function ensureDatabaseIndexes() {
-  const db = getDatabase();
-  const users = db.collection('Users');
-
-  const pendingRegistrations =
-    db.collection('PendingRegistrations');
-
-  await users.createIndex(
-    {
-      username: 1,
-    },
-    {
-      unique: true,
-      name: 'users_unique_username',
-      partialFilterExpression: {
-        username: {
-          $type: 'string',
-        },
-      },
-    }
-  );
-
-  await users.createIndex(
-    {
-      email: 1,
-    },
-    {
-      unique: true,
-      name: 'users_unique_email',
-      partialFilterExpression: {
-        email: {
-          $type: 'string',
-        },
-      },
-    }
-  );
-
-  /*
-   * Removes old-style unverified Users documents
-   * one hour after their creation.
-   *
-   * New registrations are kept in
-   * PendingRegistrations instead.
-   */
-  await users.createIndex(
-    {
-      createdAt: 1,
-    },
-    {
-      expireAfterSeconds:
-        VERIFICATION_CODE_TTL_MS / 1000,
-
-      name:
-        'delete_legacy_unverified_users_after_one_hour',
-
-      partialFilterExpression: {
-        emailVerified: false,
-      },
-    }
-  );
-
-  await pendingRegistrations.createIndex(
-    {
-      username: 1,
-    },
-    {
-      unique: true,
-      name:
-        'pending_registrations_unique_username',
-    }
-  );
-
-  await pendingRegistrations.createIndex(
-    {
-      email: 1,
-    },
-    {
-      unique: true,
-      name:
-        'pending_registrations_unique_email',
-    }
-  );
-
-  /*
-   * MongoDB automatically removes each pending
-   * registration after its expiresAt date.
-   *
-   * TTL cleanup may occur shortly after the exact
-   * expiration time. The API also checks expiresAt
-   * itself, so an expired registration cannot be used
-   * while waiting for MongoDB's cleanup worker.
-   */
-  await pendingRegistrations.createIndex(
-    {
-      expiresAt: 1,
-    },
-    {
-      expireAfterSeconds: 0,
-      name:
-        'delete_expired_pending_registrations',
-    }
-  );
-
-  /*
-   * Immediately removes legacy unverified accounts
-   * that are already older than one hour.
-   */
-  const legacyCutoff = new Date(
-    Date.now() -
-      VERIFICATION_CODE_TTL_MS
-  );
-
-  await users.deleteMany({
-    emailVerified: {
-      $ne: true,
-    },
-
-    $or: [
-      {
-        createdAt: {
-          $lte: legacyCutoff,
-        },
-      },
-      {
-        createdAt: {
-          $exists: false,
-        },
-      },
-      {
-        createdAt: null,
-      },
-    ],
-  });
-}
-
 async function startServer() {
   try {
     await client.connect();
@@ -2493,12 +1922,6 @@ async function startServer() {
 
     console.log(
       'MongoDB connected successfully'
-    );
-
-    await ensureDatabaseIndexes();
-
-    console.log(
-      'MongoDB indexes ready'
     );
 
     console.log(
