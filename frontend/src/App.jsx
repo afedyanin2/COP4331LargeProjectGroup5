@@ -1,49 +1,123 @@
-import { useEffect, useState } from 'react';
-import { Link, Route, Routes } from 'react-router-dom';
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  Route,
+  Routes,
+} from 'react-router-dom';
 
 import Navbar from './components/Navigationbar';
 import ProtectedRoute from './components/ProtectedRoute';
 
 import AboutPage from './pages/AboutPage';
 import ConfirmEmailPage from './pages/ConfirmEmailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import NoteTakingPage from './pages/NoteTakingPage';
 import NotFoundPage from './pages/NotFoundPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import SettingsPage from './pages/SettingsPage';
 import SignupPage from './pages/SignUpPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import './App.css';
 
-function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    () => localStorage.getItem('noterietyLoggedIn') === 'true'
+function clearAuthenticationStorage() {
+  localStorage.removeItem(
+    'noterietyLoggedIn'
   );
 
-  const [theme, setTheme] = useState(
-    () => localStorage.getItem('noterietyTheme') || 'light'
+  localStorage.removeItem(
+    'noterietyToken'
   );
-  
+
+  localStorage.removeItem(
+    'noterietyUserName'
+  );
+
+  localStorage.removeItem(
+    'noterietyUserEmail'
+  );
+
+  localStorage.removeItem(
+    'noterietyFirstName'
+  );
+
+  localStorage.removeItem(
+    'noterietyLastName'
+  );
+
+  localStorage.removeItem(
+    'noterietyEmailVerified'
+  );
+}
+
+function App() {
+  /*
+   * A user counts as logged in only when:
+   *
+   * 1. The logged-in flag exists.
+   * 2. A JWT exists.
+   * 3. The email has been verified.
+   */
+  const [isLoggedIn, setIsLoggedIn] =
+    useState(
+      () =>
+        localStorage.getItem(
+          'noterietyLoggedIn'
+        ) === 'true' &&
+        Boolean(
+          localStorage.getItem(
+            'noterietyToken'
+          )
+        ) &&
+        localStorage.getItem(
+          'noterietyEmailVerified'
+        ) === 'true'
+    );
+
+  const [theme, setTheme] =
+    useState(
+      () =>
+        localStorage.getItem(
+          'noterietyTheme'
+        ) || 'light'
+    );
+
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('noterietyTheme', theme);
+    document.documentElement.setAttribute(
+      'data-theme',
+      theme
+    );
+
+    localStorage.setItem(
+      'noterietyTheme',
+      theme
+    );
   }, [theme]);
-  
+
   function handleThemeChange(newTheme) {
-    setTheme(newTheme === 'dark' ? 'dark' : 'light');
+    setTheme(
+      newTheme === 'dark'
+        ? 'dark'
+        : 'light'
+    );
   }
 
-  function handleLogin(email) {
-    localStorage.setItem('noterietyLoggedIn', 'true');
-    localStorage.setItem('noterietyUserEmail', email);
+  function handleLogin() {
+    localStorage.setItem(
+      'noterietyLoggedIn',
+      'true'
+    );
+
     setIsLoggedIn(true);
   }
 
   function handleLogout() {
-    localStorage.removeItem('noterietyLoggedIn');
+    clearAuthenticationStorage();
     setIsLoggedIn(false);
   }
 
@@ -59,12 +133,20 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={<HomePage isLoggedIn={isLoggedIn} />}
+            element={
+              <HomePage
+                isLoggedIn={isLoggedIn}
+              />
+            }
           />
 
           <Route
             path="/about"
-            element={<AboutPage isLoggedIn={isLoggedIn} />}
+            element={
+              <AboutPage
+                isLoggedIn={isLoggedIn}
+              />
+            }
           />
 
           <Route
@@ -79,23 +161,33 @@ function App() {
 
           <Route
             path="/signup"
-            element={<SignupPage isLoggedIn={isLoggedIn} />}
+            element={
+              <SignupPage
+                isLoggedIn={isLoggedIn}
+              />
+            }
           />
 
           <Route
             path="/confirm-email"
-            element={<ConfirmEmailPage />}
+            element={
+              <ConfirmEmailPage />
+            }
           />
 
           <Route
             path="/verify-email"
-            element={<VerifyEmailPage />}
+            element={
+              <VerifyEmailPage />
+            }
           />
 
           <Route
             path="/notes"
             element={
-              <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <ProtectedRoute
+                isLoggedIn={isLoggedIn}
+              >
                 <NoteTakingPage />
               </ProtectedRoute>
             }
@@ -104,47 +196,58 @@ function App() {
           <Route
             path="/settings"
             element={
-              <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <ProtectedRoute
+                isLoggedIn={isLoggedIn}
+              >
                 <SettingsPage
                   onLogout={handleLogout}
                   theme={theme}
-                  onThemeChange={handleThemeChange}
+                  onThemeChange={
+                    handleThemeChange
+                  }
                 />
               </ProtectedRoute>
             }
-/>
+          />
 
           <Route
             path="/forgot-password"
-            element={<ForgotPasswordPage />}
+            element={
+              <ForgotPasswordPage />
+            }
           />
 
           <Route
             path="/reset-password"
-            element={<ResetPasswordPage />}
+            element={
+              <ResetPasswordPage />
+            }
           />
 
           <Route
             path="*"
-            element={<NotFoundPage />}
+            element={
+              <NotFoundPage />
+            }
           />
         </Routes>
       </main>
 
-          <footer className="footer">
-            <div className="footer-inner">
-              <span></span>
-              <p>
-                Simple note-taking for everyday ideas.
-              </p>
+      <footer className="footer">
+        <div className="footer-inner">
+          <span />
 
-              <span className="footer-copyright">
-                © 2026 Noteriety
-              </span>
-            </div>
-          </footer>
+          <p>
+            Simple note-taking for everyday ideas.
+          </p>
+
+          <span className="footer-copyright">
+            © 2026 Noteriety
+          </span>
+        </div>
+      </footer>
     </div>
-    );
+  );
 }
 
 export default App;
