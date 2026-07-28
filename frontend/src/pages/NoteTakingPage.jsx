@@ -920,429 +920,63 @@ function NoteTakingPage() {
     return 'All Notes';
   }
 
-  function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function createDrawingSvg(drawing) {
-  if (
-    !Array.isArray(drawing) ||
-    drawing.length === 0
-  ) {
-    return `
-      <p class="empty-message">
-        This note has no canvas drawing.
-      </p>
-    `;
-  }
-
-  const svgStrokes = drawing
-    .map((stroke) => {
-      /*
-       * Supports both:
-       *   [ { x, y }, { x, y } ]
-       *
-       * and:
-       *   { points: [ { x, y }, { x, y } ] }
-       */
-      const strokePoints =
-        Array.isArray(stroke)
-          ? stroke
-          : Array.isArray(stroke?.points)
-            ? stroke.points
-            : [];
-
-      const validPoints =
-        strokePoints
-          .map((point) => {
-            const x = Number(point?.x);
-            const y = Number(point?.y);
-
-            if (
-              !Number.isFinite(x) ||
-              !Number.isFinite(y)
-            ) {
-              return null;
-            }
-
-            return {
-              x,
-              y
-            };
-          })
-          .filter(Boolean);
-
-      if (validPoints.length === 0) {
-        return '';
-      }
-
-      const possibleWidth = Number(
-        stroke?.width ??
-        stroke?.size ??
-        5
-      );
-
-      const strokeWidth =
-        Number.isFinite(possibleWidth)
-          ? Math.min(
-              Math.max(possibleWidth, 1),
-              50
-            )
-          : 5;
-
-      const strokeColor =
-        typeof stroke?.color === 'string' &&
-        stroke.color.trim()
-          ? escapeHtml(
-              stroke.color.trim()
-            )
-          : '#266c4c';
-
-      /*
-       * A stroke with only one point becomes a dot.
-       */
-      if (validPoints.length === 1) {
-        const point = validPoints[0];
-
-        return `
-          <circle
-            cx="${point.x}"
-            cy="${point.y}"
-            r="${Math.max(
-              strokeWidth / 2,
-              2
-            )}"
-            fill="${strokeColor}"
-          />
-        `;
-      }
-
-      const pathData =
-        validPoints
-          .map(
-            (point, index) =>
-              `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
-          )
-          .join(' ');
-
-      return `
-        <path
-          d="${pathData}"
-          fill="none"
-          stroke="${strokeColor}"
-          stroke-width="${strokeWidth}"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      `;
-    })
-    .join('');
-
-  if (!svgStrokes.trim()) {
-    return `
-      <p class="empty-message">
-        This note has no valid canvas drawing.
-      </p>
-    `;
-  }
-
-  return `
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 800 500"
-      width="800"
-      height="500"
-      role="img"
-      aria-label="Canvas drawing"
-    >
-      <rect
-        x="0"
-        y="0"
-        width="800"
-        height="500"
-        fill="#ffffff"
-      />
-
-      ${svgStrokes}
-    </svg>
-  `;
-}
-
-function downloadNote(note) {
-  try {
-    if (!note) {
-      throw new Error(
-        'No note was selected for download.'
-      );
-    }
-
-    const title = escapeHtml(
-      note.title ||
-      'Untitled Note'
-    );
-
-    const category = escapeHtml(
-      note.category ||
-      DEFAULT_CATEGORY
-    );
-
-    const tags =
-      Array.isArray(note.tags) &&
+  function downloadNote(note) {
+    const contents = [
+      note.title,
+      '',
+      `Category: ${note.category}`,
       note.tags.length > 0
-        ? note.tags
-            .map((tag) =>
-              escapeHtml(tag)
-            )
-            .join(', ')
-        : 'None';
-
-    const noteContent = escapeHtml(
-      note.content || ''
-    );
-
-    const updatedDate =
-      note.updatedAt
-        ? escapeHtml(
-            formatDate(
-              note.updatedAt
-            )
-          )
-        : 'Unknown';
-
-    const drawingMarkup =
-      createDrawingSvg(
-        note.drawing || []
-      );
-
-    const safeFileName = String(
-      note.title ||
-      'noteriety-note'
-    )
-      .replace(
-        /[<>:"/\\|?*]+/g,
-        ''
-      )
-      .trim()
-      .replace(/\s+/g, '-')
-      .toLowerCase();
-
-    const htmlContents = `
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
-
-  <title>${title}</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      max-width: 920px;
-      margin: 0 auto;
-      padding: 40px 24px;
-      background: #f6faf7;
-      color: #1a2b22;
-      font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
-      line-height: 1.6;
-    }
-
-    main {
-      padding: 36px;
-      border: 1px solid #c9dfd1;
-      border-radius: 18px;
-      background: #ffffff;
-      box-shadow:
-        0 8px 24px
-        rgba(26, 43, 34, 0.1);
-    }
-
-    h1 {
-      margin-top: 0;
-      margin-bottom: 14px;
-      overflow-wrap: anywhere;
-    }
-
-    h2 {
-      margin-top: 0;
-      color: #1c4f38;
-    }
-
-    .metadata {
-      margin-bottom: 30px;
-      padding-bottom: 22px;
-      border-bottom:
-        1px solid #c9dfd1;
-      color: #2a5847;
-    }
-
-    .metadata p {
-      margin: 5px 0;
-    }
-
-    .note-section,
-    .canvas-section {
-      margin-top: 30px;
-    }
-
-    .note-content {
-      min-height: 80px;
-      padding: 20px;
-      border: 1px solid #c9dfd1;
-      border-radius: 12px;
-      background: #f6faf7;
-      overflow-wrap: anywhere;
-      white-space: pre-wrap;
-    }
-
-    .canvas-frame {
-      width: 100%;
-      overflow: auto;
-      border: 1px solid #c9dfd1;
-      border-radius: 12px;
-      background: #ffffff;
-    }
-
-    .canvas-frame svg {
-      display: block;
-      width: 100%;
-      max-width: 800px;
-      height: auto;
-      margin: 0 auto;
-    }
-
-    .empty-message {
-      margin: 0;
-      padding: 20px;
-      color: #2a5847;
-      font-style: italic;
-    }
-
-    @media print {
-      body {
-        max-width: none;
-        padding: 0;
-        background: #ffffff;
-      }
-
-      main {
-        padding: 0;
-        border: 0;
-        box-shadow: none;
-      }
-    }
-  </style>
-</head>
-
-<body>
-  <main>
-    <h1>${title}</h1>
-
-    <div class="metadata">
-      <p>
-        <strong>Category:</strong>
-        ${category}
-      </p>
-
-      <p>
-        <strong>Tags:</strong>
-        ${tags}
-      </p>
-
-      <p>
-        <strong>Updated:</strong>
-        ${updatedDate}
-      </p>
-    </div>
-
-    <section class="note-section">
-      <h2>Note</h2>
-
-      <div class="note-content">${
-        noteContent ||
-        'This note has no text content.'
-      }</div>
-    </section>
-
-    <section class="canvas-section">
-      <h2>Canvas</h2>
-
-      <div class="canvas-frame">
-        ${drawingMarkup}
-      </div>
-    </section>
-  </main>
-</body>
-</html>
-    `.trim();
+        ? `Tags: ${note.tags.join(
+            ', '
+          )}`
+        : 'Tags: None',
+      '',
+      note.content
+    ].join('\n');
 
     const file = new Blob(
-      [htmlContents],
+      [contents],
       {
         type:
-          'text/html;charset=utf-8'
+          'text/plain;charset=utf-8'
       }
     );
 
     const fileUrl =
       URL.createObjectURL(file);
 
-    const downloadLink =
+    const link =
       document.createElement('a');
 
-    downloadLink.href =
-      fileUrl;
+    const safeName =
+      note.title
+        .replace(
+          /[<>:"/\\|?*]+/g,
+          ''
+        )
+        .trim()
+        .replace(/\s+/g, '-')
+        .toLowerCase();
 
-    downloadLink.download =
-      `${safeFileName ||
-        'noteriety-note'}.html`;
+    link.href = fileUrl;
+
+    link.download =
+      `${safeName ||
+        'noteriety-note'}.txt`;
 
     document.body.appendChild(
-      downloadLink
+      link
     );
 
-    downloadLink.click();
-    downloadLink.remove();
+    link.click();
+    link.remove();
 
-    /*
-     * Delay revocation so the browser has enough time
-     * to begin downloading the file.
-     */
-    window.setTimeout(() => {
-      URL.revokeObjectURL(
-        fileUrl
-      );
-    }, 1000);
+    URL.revokeObjectURL(
+      fileUrl
+    );
 
     setOpenMenuId(null);
-    setNotesError('');
-  } catch (error) {
-    console.error(
-      'Download note failed:',
-      error
-    );
-
-    setNotesError(
-      error.message ||
-      'Unable to download the note.'
-    );
   }
-}
 
   if (isLoadingNotes) {
     return (
