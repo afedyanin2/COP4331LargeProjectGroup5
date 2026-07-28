@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Canvas from '../components/Canvas.jsx';
-import SavedCanvas from '../components/SavedCanvas.jsx';
+import CanvasWorkspace from '../components/CanvasWorkspace.jsx';
+import ShownCanvas from '../components/ShownCanvas.jsx';
 
 const DEFAULT_CATEGORY = 'Uncategorized';
 
@@ -9,6 +9,7 @@ function getStoredNotes() {
   try {
     const storedNotes = localStorage.getItem('noterietyNotes');
     const parsedNotes = storedNotes ? JSON.parse(storedNotes) : [];
+    console.log("Loaded notes:", parsedNotes);
 
     if (!Array.isArray(parsedNotes)) {
       return [];
@@ -19,7 +20,6 @@ function getStoredNotes() {
       category: note.category || DEFAULT_CATEGORY,
       tags: Array.isArray(note.tags) ? note.tags : [],
       pinned: Boolean(note.pinned),
-      canvasInfo: Array.isArray(note.canvasInfo) ? note.canvasInfo : [],
       createdAt: note.createdAt || note.id || Date.now(),
       updatedAt: note.updatedAt || note.id || Date.now()
     }));
@@ -35,11 +35,14 @@ function NoteTakingPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
   const [noteToDelete, setNoteToDelete] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [editorMode, setEditorMode] = useState("");
+  const [isCanvas, setIsCanvas] = useState(false);
+  const [isNote, setIsNote] = useState(false);
   const [mobileView, setMobileView] = useState('list');
-  const [canvasInfo, setCanvasInfo] = useState([]);
-  const [savedCanvasInfo, setSavedCanvasInfo] = useState([]);
+  const [isEditing, setIsEditing] = useState(false)
+  const [isCreating, setIsCreating] = useState(false);
+  const [drawing, setDrawing] = useState([]);
+  const canvasWorkspaceRef = useRef(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -152,11 +155,11 @@ function NoteTakingPage() {
 
   function beginNewNote() {
     resetForm();
+    setDrawing([]);
     setSelectedNoteId(null);
     setIsCreating(true);
     setIsEditing(true);
     setOpenMenuId(null);
-    setCanvasInfo([]);
     setMobileView('editor');
   }
 
@@ -166,18 +169,17 @@ function NoteTakingPage() {
     setIsEditing(false);
     setOpenMenuId(null);
     setMobileView('editor');
-    setCanvasInfo(note.canvasInfo || []);
   }
 
   function beginEditing(note) {
     setSelectedNoteId(note.id);
+    setDrawing(note.drawing || []);
     setFormData({
       title: note.title,
       content: note.content,
       category: note.category,
       tags: note.tags.join(', ')
     });
-    setCanvasInfo(note.CanvasInfo || []);
     setIsCreating(false);
     setIsEditing(true);
     setOpenMenuId(null);
@@ -198,7 +200,10 @@ function NoteTakingPage() {
   function handleSaveNote(event) {
     event.preventDefault();
 
-    if (!formData.title.trim() && !formData.content.trim()) {
+    const currentDrawing = drawing;
+
+    if (!formData.title.trim() && !formData.content.trim() && currentDrawing.length === 0) 
+    {
       return;
     }
 
@@ -212,13 +217,14 @@ function NoteTakingPage() {
       )
     ];
 
+
     const noteData = {
       title: formData.title.trim() || 'Untitled Note',
       content: formData.content.trim(),
       category: formData.category.trim() || DEFAULT_CATEGORY,
       tags,
-      canvasInfo: [...canvasInfo],
-      updatedAt: currentTime
+      updatedAt: currentTime,
+      drawing: currentDrawing,
     };
 
     if (isCreating) {
@@ -290,6 +296,7 @@ function NoteTakingPage() {
   }
 
   function downloadNote(note) {
+    console.log("download note reached", note);
     const fileContents = [
       note.title,
       '',
@@ -323,6 +330,41 @@ function NoteTakingPage() {
 
     URL.revokeObjectURL(fileUrl);
     setOpenMenuId(null);
+  }
+
+  function downloadCanvas(note)
+  {
+    if (note.drawing.length === 0) return;
+    console.log("downloadCanvas reached", note.drawing);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 800;
+    canvas.height = 500;
+
+    const ctx = canvas.getContext("2d")
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (const stroke of note.drawing)
+      {
+          for (const point of stroke)
+          {
+              ctx.beginPath();
+              ctx.arc(point.x, point.y, 5, 0, Math.PI*2);
+              ctx.fillStyle = "green";
+              ctx.fill();
+          }
+      }
+
+    const url = canvas.toDataURL("image/png");
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${note.title || "canvas"}.png`;
+    link.click();
+    downloadLink.href = fileUrl;
+    downloadLink.download = `${note.title || "canvas"}.txt`;
   }
 
   function selectView(view) {
@@ -558,7 +600,14 @@ function NoteTakingPage() {
                           <button
                             type="button"
                             role="menuitem"
-                            onClick={() => downloadNote(note)}
+                            onClick=
+                            {
+                              () =>
+                                {
+                                  downloadNote(note);
+                                  downloadCanvas(note);
+                                }
+                            }
                           >
                             Download
                           </button>
@@ -567,7 +616,8 @@ function NoteTakingPage() {
                             type="button"
                             role="menuitem"
                             className="danger-menu-option"
-                            onClick={() => requestDelete(note)}
+                            onClick=
+                            {() => requestDelete(note)}
                           >
                             Delete
                           </button>
@@ -681,20 +731,46 @@ function NoteTakingPage() {
                     />
                   </div>
                 </div>
+                
+                <div className="edit-mode-buttons">
+                  <button type="button" 
+                  onClick={() => setEditorMode("text")}
+                  >
+                    Note
+                  </button>
 
-                <label htmlFor="workspace-content">Note</label>
-                <textarea
-                  id="workspace-content"
-                  name="content"
-                  value={formData.content}
-                  onChange={handleFormChange}
-                  placeholder="Start writing your note..."
-                />
+                  <button type="button" 
+                  onClick={() => setEditorMode("canvas")}
+                  >
+                    Canvas
+                  </button>
+                </div>
+                
+                {editorMode === "text" ? 
+                (
+                  <div>
+                    <label htmlFor="workspace-content">Text</label>
+                      <textarea
+                        id="workspace-content"
+                        name="content"
+                        value={formData.content}
+                        onChange={handleFormChange}
+                        placeholder="Start writing your note..."
+                      />
+                  </div>
+                ) : 
+                (
+                  <div className="canvas-container">
+                    <label className="canvas-title">Canvas</label>
 
-                  <Canvas
-                    onChange={setCanvasInfo}
-                    savedCanvas={canvasInfo}
-                  />
+                    <CanvasWorkspace
+                      drawing={drawing} 
+                      setDrawing={setDrawing}
+                      ref={canvasWorkspaceRef} 
+                    />
+
+                  </div>
+                )}  
               </div>
 
               <div className="mobile-editor-actions">
@@ -764,7 +840,14 @@ function NoteTakingPage() {
                   <button
                     type="button"
                     className="editor-secondary-button"
-                    onClick={() => downloadNote(selectedNote)}
+                    onClick=
+                    {
+                      () => 
+                        {
+                          downloadNote(selectedNote);
+                          downloadCanvas(selectedNote);
+                        }
+                    }
                   >
                     Download
                   </button>
@@ -793,14 +876,16 @@ function NoteTakingPage() {
                   <span key={tag}>{tag}</span>
                 ))}
               </div>
-
+              
               <div
                 className={`note-reader-content ${
-                  selectedNote.content ? '' : 'is-empty'
+                  (selectedNote.content) ? '' : 'is-empty'
                 }`}
               >
                 {selectedNote.content ? (
-                  <p>{selectedNote.content}</p>
+                  <p>
+                    {selectedNote.content}
+                  </p>
                 ) : (
                   <>
                     <svg
@@ -829,9 +914,9 @@ function NoteTakingPage() {
                     </button>
                   </>
                 )}
-                {selectedNote.canvasInfo?.length > 0 && (
-                  <SavedCanvas drawing={selectedNote.canvasInfo} />
-                )}
+                    <ShownCanvas
+                      drawing={selectedNote.drawing || []}
+                    />
               </div>
             </article>
           ) : (

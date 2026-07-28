@@ -1426,6 +1426,14 @@ button:hover {
   padding-bottom: 90px;
 
 }
+
+.edit-mode-buttons
+{
+  display: flex;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+
 .notespace {
   flex: 1;
   gap: 20px;
@@ -1436,8 +1444,14 @@ button:hover {
   flex-direction: column;
 }
 
+.canvas-title {
+  display: flex;
+  gap: 10px;
+}
+
 .canvas-buttons {
   display: flex;
+  padding-top: 10px;
   gap: 10px;
 }
 
@@ -1445,7 +1459,7 @@ button:hover {
   flex: 1;
   border: 1px solid var(--site-border);
   border-radius: 8px;
-  width: 500px;
+  width: 800px;
   height: 500px;
 }
 

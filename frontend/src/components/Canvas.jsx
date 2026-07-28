@@ -1,64 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 
-function Canvas({onChange, savedCanvas = []}) 
+const Canvas = forwardRef(function Canvas({drawing = [], onStroke}, ref) 
 {
     const canvasRef = useRef(null);
     const ctxRef = useRef(null);
+    const currentStroke = useRef([]);
 
-    const strokes = useRef([]);
-    const redoStrokes = useRef([]);
-    const currStroke = useRef([]);
-
-    function redraw(ctx)
-    {
-        for (const stroke of strokes.current)
+    useImperativeHandle(ref, () => ({
+        getImage() 
         {
-            for (const point of stroke)
-            {
-                drawPoint(ctx, point);
-            }
-        }   
-    }
-
-    function undo()
-    {
-        const canvas = canvasRef.current;
-        const ctx = ctxRef.current;
-
-        if (!canvas || !ctx) return;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const removedStroke = strokes.current.pop()
-
-        if (removedStroke)
-        {
-            redoStrokes.current.push(removedStroke);
+            return canvasRef.current.toDataURL("image/png");
         }
-
-        redraw(ctx);
-
-        onChange([...strokes.current]);
-    }
-
-    function redo()
-    {
-        const canvas = canvasRef.current;
-        const ctx = ctxRef.current;
-
-        if (!canvas || !ctx) return;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const removedStroke = redoStrokes.current.pop();
-
-        if (removedStroke)
-        {
-            strokes.current.push(removedStroke)
-        }
-
-        redraw(ctx);
-
-        onChange([...strokes.current]);
-    }
+    }));
 
     function drawPoint(ctx, point)
     {
@@ -68,76 +21,60 @@ function Canvas({onChange, savedCanvas = []})
         ctx.fill();
     }
 
-    useEffect(() =>
+    function redraw()
     {
+        const canvas = canvasRef.current;
+
+        if (!canvas) return;
+
         const ctx = ctxRef.current;
 
-        if (!ctx || !savedCanvas) return;
+        if (!canvas || !ctx) return;
 
-        strokes.current = savedCanvas;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        console.log(savedCanvas);
-
-        ctx.clearRect(0, 0, 500, 500);
-
-        if (savedCanvas.length > 0)
+        for (const stroke of drawing)
         {
-            for (const stroke of savedCanvas)
+            for (const point of stroke)
             {
-                for (const point of stroke)
-                {
-                    drawPoint(ctx, point);
-                }
+                drawPoint(ctx, point);
             }
         }
-    }, [savedCanvas])
+    }
 
     useEffect(() => 
     {
         const canvas = canvasRef.current;
+
+        if (!canvas) return;
+
         const ctx = canvas.getContext("2d");
 
         ctxRef.current = ctx;
 
-        if (savedCanvas.length > 0)
-        {
-            strokes.current = savedCanvas;
-
-            for (const stroke of savedCanvas)
-            {
-                for (const point of stroke)
-                {
-                    drawPoint(ctx, point);
-                }
-            }
-        }
-
         let prevX = 0;
         let prevY = 0;
-
-        let firstPoint = true;
-        let drawing = false;
+        let isDrawing = false;
 
         function startDrawing(obj)
         {
-            drawing = true;
+            isDrawing = true;
+
             prevX = obj.offsetX;
             prevY = obj.offsetY;
-            redoStrokes.current = [];
+
+            currentStroke.current = [];
         }
 
         function stopDrawing()
         {
-            drawing = false;
-
-            if (currStroke.current.length > 0)
+            if (currentStroke.current.length > 0) 
             {
-                strokes.current.push([...currStroke.current]);
-
-                onChange([...strokes.current]);
+                onStroke(currentStroke.current);
             }
 
-            currStroke.current = [];
+            currentStroke.current = [];
+            isDrawing = false;
         }
 
         function mouseenter(obj)
@@ -151,11 +88,13 @@ function Canvas({onChange, savedCanvas = []})
         function draw(obj)
         {
 
-            if (!drawing) return;
+            if (!isDrawing) return;
+
             const dx = obj.offsetX - prevX;
             const dy = obj.offsetY - prevY;
 
             const distance = Math.sqrt(dx*dx + dy*dy);
+
             for (let i = 0; i < distance; i+=3)
             {
                 const x = prevX + dx * (i / distance);
@@ -164,7 +103,8 @@ function Canvas({onChange, savedCanvas = []})
                 const point = {x: x, y: y};
 
                 drawPoint(ctx, point);
-                currStroke.current.push(point);
+
+                currentStroke.current.push(point);
             }
 
             prevX = obj.offsetX;
@@ -177,23 +117,29 @@ function Canvas({onChange, savedCanvas = []})
         canvas.addEventListener("mouseleave", stopDrawing);
         canvas.addEventListener("mouseenter", mouseenter);
 
-    }, []);
+        return () => {
+            canvas.removeEventListener("mousedown", startDrawing);
+            canvas.removeEventListener("mousemove", draw);
+            canvas.removeEventListener("mouseup", stopDrawing);
+            canvas.removeEventListener("mouseleave", stopDrawing);
+            canvas.removeEventListener("mouseenter", mouseenter);
+        };
+    }, [onStroke]);
+
+    useEffect(() =>
+    {
+        redraw();
+    }, [drawing]);
 
     return(
-        <div className = "canvas-container">
-            <canvas
-                className="canvas"
-                ref={canvasRef}
-                width={500}
-                height={500}
-            />
-
-            <div className = "canvas-buttons">
-                <button type="button" onClick={undo}>Undo</button>
-                <button type="button" onClick={redo}>Redo</button>
-            </div>
-       </div>  
+        <canvas
+            className="canvas"
+            ref={canvasRef}
+            width={800}
+            height={500}
+        />
     );
 }
+)
 
 export default Canvas;

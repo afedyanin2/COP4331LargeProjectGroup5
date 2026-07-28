@@ -1,15 +1,13 @@
-import { useEffect, useRef } from "react";
+import {useEffect, useRef, forwardRef, useImperativeHandle} from 'react';
 
-function SavedCanvas({drawing})
+function ShownCanvas({drawing = []})
 {
     const canvasRef = useRef(null);
 
+    
     useEffect(() =>
     {
         const canvas = canvasRef.current;
-
-        if (!canvas) return;
-
         const ctx = canvas.getContext("2d");
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -19,20 +17,21 @@ function SavedCanvas({drawing})
             for (const point of stroke)
             {
                 ctx.beginPath();
-                ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+                ctx.arc(point.x, point.y, 5, 0, Math.PI*2);
                 ctx.fillStyle = "green";
                 ctx.fill();
             }
         }
-    }, [drawing])
+    }, [drawing]);
 
-    return(
+    return (
         <canvas
+            className="canvas"
             ref={canvasRef}
-            width={500}
+            width={800}
             height={500}
         />
-    );
-}
+    )
+};
 
-export default SavedCanvas;
+export default ShownCanvas;
