@@ -34,6 +34,10 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  http: ^1.6.0
+  shared_preferences: ^2.5.5
+  provider: ^6.1.5+1
+  share_plus: ^13.3.0
 
   # Networking (api.dart) and local token/email storage.
   http: ^1.2.0
@@ -67,6 +71,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+  - assets/logo-light.png
+  - assets/logo-dark.png
 
   assets:
     - assets/images/light-theme.webp

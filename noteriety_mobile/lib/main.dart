@@ -7,20 +7,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'api/api.dart';
-import 'theme/theme_controller.dart';
-import 'screens/splash_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
 import 'screens/forgot_password_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/notes_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/splash_screen.dart';
+import 'theme/theme_controller.dart';
+
+const int splashMs = 1400;
 
 void main() {
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeController()..load(),
-      child: const NoterietyApp(),
-    ),
-  );
+  runApp(const NoterietyApp());
 }
 
 class NoterietyApp extends StatelessWidget {
@@ -28,85 +25,104 @@ class NoterietyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<ThemeController>();
-    return MaterialApp(
-      title: 'Noteriety',
-      debugShowCheckedModeBanner: false,
-      themeMode: controller.mode,
-      theme: lightTheme,
-      darkTheme: darkTheme,
-      home: const AppRoot(),
+    return ChangeNotifierProvider(
+      create: (_) => ThemeController()..load(),
+      child: Consumer<ThemeController>(
+        builder: (context, theme, _) => MaterialApp(
+          title: 'Noteriety',
+          debugShowCheckedModeBanner: false,
+          theme: lightTheme,
+          darkTheme: darkTheme,
+          themeMode: theme.mode,
+          home: const RootGate(),
+        ),
+      ),
     );
   }
 }
 
-enum _Screen { splash, login, register, forgotPassword, notes }
-
-/// Top-level screen switcher. Checks for a saved login token while the
-/// splash screen holds (matching the "minimum-hold timing lives in
-/// main.dart" note in splash_screen.dart), then routes to Notes or Login.
-class AppRoot extends StatefulWidget {
-  const AppRoot({super.key});
+class RootGate extends StatefulWidget {
+  const RootGate({super.key});
 
   @override
-  State<AppRoot> createState() => _AppRootState();
+  State<RootGate> createState() => _RootGateState();
 }
 
-class _AppRootState extends State<AppRoot> {
-  _Screen _screen = _Screen.splash;
+class _RootGateState extends State<RootGate> {
+  bool _booting = true;
+  bool _authed = false;
 
   @override
   void initState() {
     super.initState();
-    _bootstrap();
+    _boot();
   }
 
-  Future<void> _bootstrap() async {
-    final results = await Future.wait([
-      getToken(),
-      Future.delayed(const Duration(milliseconds: 1100)),
-    ]);
-    final token = results[0] as String?;
+  Future<void> _boot() async {
+    final started = DateTime.now();
+    String? token;
+    try {
+      token = await getToken();
+    } catch (_) {
+      token = null;
+    }
+    final elapsed = DateTime.now().difference(started).inMilliseconds;
+    final wait = splashMs - elapsed;
+    if (wait > 0) {
+      await Future.delayed(Duration(milliseconds: wait));
+    }
     if (!mounted) return;
     setState(() {
-      _screen =
-          (token != null && token.isNotEmpty) ? _Screen.notes : _Screen.login;
+      _authed = token != null && token.isNotEmpty;
+      _booting = false;
     });
   }
 
-  void _goTo(_Screen next) => setState(() => _screen = next);
+  Future<void> _handleLogout() async {
+    await clearToken();
+    if (mounted) setState(() => _authed = false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    switch (_screen) {
-      case _Screen.splash:
-        return const SplashScreen();
+    if (_booting) return const SplashScreen();
+    if (!_authed) {
+      return AuthFlow(onAuthed: () => setState(() => _authed = true));
+    }
+    return NotesScreen(onLogout: _handleLogout);
+  }
+}
 
-      case _Screen.login:
-        return LoginScreen(
-          onLoggedIn: () => _goTo(_Screen.notes),
-          onGoToRegister: () => _goTo(_Screen.register),
-          onForgotPassword: () => _goTo(_Screen.forgotPassword),
-        );
+/// The logged-out flow: switches between login / register / forgot, exactly
+/// like the RN authView state did.
+class AuthFlow extends StatefulWidget {
+  final VoidCallback onAuthed;
+  const AuthFlow({super.key, required this.onAuthed});
 
-      case _Screen.register:
+  @override
+  State<AuthFlow> createState() => _AuthFlowState();
+}
+
+class _AuthFlowState extends State<AuthFlow> {
+  String _view = 'login'; // 'login' | 'register' | 'forgot'
+
+  @override
+  Widget build(BuildContext context) {
+    switch (_view) {
+      case 'register':
         return RegisterScreen(
-          onRegistered: () => _goTo(_Screen.notes),
-          onGoToLogin: () => _goTo(_Screen.login),
+          onRegistered: widget.onAuthed,
+          onGoToLogin: () => setState(() => _view = 'login'),
         );
-
-      case _Screen.forgotPassword:
+      case 'forgot':
         return ForgotPasswordScreen(
-          onBack: () => _goTo(_Screen.login),
+          onBack: () => setState(() => _view = 'login'),
         );
-
-      case _Screen.notes:
-        return NotesScreen(
-          onLogout: () async {
-            await clearToken();
-            if (!mounted) return;
-            _goTo(_Screen.login);
-          },
+      default:
+        return LoginScreen(
+          onLoggedIn: widget.onAuthed,
+          onGoToRegister: () => setState(() => _view = 'register'),
+          onForgotPassword: () => setState(() => _view = 'forgot'),
         );
     }
   }
