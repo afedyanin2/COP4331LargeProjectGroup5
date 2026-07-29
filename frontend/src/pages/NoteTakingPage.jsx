@@ -128,7 +128,6 @@ function NoteTakingPage() {
     tags: ''
   });
 
-  // Load this user's notes from the server once, on mount.
   useEffect(() => {
     let isMounted = true;
 
