@@ -8,7 +8,12 @@ import '../theme/tokens.dart';
 
 class NoteEditorScreen extends StatefulWidget {
   final Note? note; // null => creating
-  const NoteEditorScreen({super.key, this.note});
+  final List<String> existingCategories; // for quick-pick chips
+  const NoteEditorScreen({
+    super.key,
+    this.note,
+    this.existingCategories = const [],
+  });
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -17,8 +22,7 @@ class NoteEditorScreen extends StatefulWidget {
 class _NoteEditorScreenState extends State<NoteEditorScreen> {
   late final TextEditingController _title;
   late final TextEditingController _body;
-  String _categoryId = '';
-  List<Category> _categories = [];
+  late final TextEditingController _category;
   bool _busy = false;
 
   bool get _isNew => widget.note == null;
@@ -28,16 +32,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     super.initState();
     _title = TextEditingController(text: widget.note?.title ?? '');
     _body = TextEditingController(text: widget.note?.body ?? '');
-    _categoryId = widget.note?.categoryId ?? '';
-    getCategories().then((c) {
-      if (mounted) setState(() => _categories = c);
-    }).catchError((_) => <Category>[]);
+    _category = TextEditingController(
+      text: widget.note?.category ?? kUncategorized,
+    );
   }
 
   @override
   void dispose() {
     _title.dispose();
     _body.dispose();
+    _category.dispose();
     super.dispose();
   }
 
@@ -45,12 +49,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     // The backend requires a non-empty title.
     final finalTitle =
         _title.text.trim().isEmpty ? 'Untitled note' : _title.text.trim();
+    final category =
+        _category.text.trim().isEmpty ? kUncategorized : _category.text.trim();
     setState(() => _busy = true);
     try {
       if (_isNew) {
-        await createNote(finalTitle, _body.text, _categoryId);
+        await createNote(finalTitle, _body.text, category);
       } else {
-        await updateNote(widget.note!.id, finalTitle, _body.text, _categoryId);
+        await updateNote(widget.note!.id, finalTitle, _body.text, category);
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -178,24 +184,61 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   contentPadding: const EdgeInsets.symmetric(vertical: 8),
                 ),
               ),
-              // Category chips
-              if (_categories.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: SizedBox(
-                    height: 34,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _chip('No category', _categoryId.isEmpty,
-                            () => setState(() => _categoryId = '')),
-                        for (final c in _categories)
-                          _chip(c.name, _categoryId == c.id,
-                              () => setState(() => _categoryId = c.id)),
-                      ],
+              // Category: free-text name (shared with web), with quick-pick
+              // chips of categories that already exist.
+              Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                child: Row(
+                  children: [
+                    Text('Category',
+                        style: TextStyle(
+                          fontFamilyFallback: AppFonts.mono,
+                          fontSize: 11,
+                          letterSpacing: 1.4,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textMuted,
+                        )),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _category,
+                        cursorColor: colors.primary,
+                        textCapitalization: TextCapitalization.words,
+                        style: TextStyle(color: colors.text, fontSize: 14),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          hintText: kUncategorized,
+                          hintStyle: TextStyle(color: colors.textMuted),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: colors.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                                BorderSide(color: colors.primary, width: 1.4),
+                          ),
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              if (widget.existingCategories.isNotEmpty)
+                SizedBox(
+                  height: 34,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (final name in widget.existingCategories)
+                        _chip(name, _category.text.trim() == name,
+                            () => setState(() => _category.text = name)),
+                    ],
                   ),
                 ),
+              const SizedBox(height: 4),
               // Body
               Expanded(
                 child: TextField(

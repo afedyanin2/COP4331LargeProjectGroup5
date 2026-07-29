@@ -179,43 +179,43 @@ Future<Category> createCategory(String name) async {
 
 // --- Notes -----------------------------------------------------------
 
-/// categoryId: null = all, 'uncategorized' = only uncategorized, or a real
-/// id to filter. Server sorts pinned first, then most recent.
-Future<List<Note>> getNotes([String? categoryId]) async {
-  final qs = (categoryId != null && categoryId.isNotEmpty)
-      ? '?categoryId=${Uri.encodeComponent(categoryId)}'
-      : '';
-  final res =
-      await http.get(_u('/api/notes$qs'), headers: await _authHeaders());
+/// Fetches all of the user's notes (server sorts pinned first, then recent).
+/// Category filtering is done client-side by name, matching the web app.
+Future<List<Note>> getNotes() async {
+  final res = await http.get(_u('/api/notes'), headers: await _authHeaders());
   final data = _handle(res);
   final list = (data['notes'] as List?) ?? const [];
   return list.whereType<Map<String, dynamic>>().map(Note.fromJson).toList();
 }
 
 /// NOTE: title is required by the backend — an empty title returns an error.
+/// `category` is the free-text name shared with the web app; categoryId is
+/// sent empty since notes are keyed by category name now.
 Future<Map<String, dynamic>> createNote(
-    String title, String body, String? categoryId) async {
+    String title, String body, String category) async {
   final res = await http.post(
     _u('/api/notes'),
     headers: await _authHeaders(),
     body: jsonEncode({
       'title': title,
       'body': body,
-      'categoryId': categoryId ?? '',
+      'category': category,
+      'categoryId': '',
     }),
   );
   return _handle(res);
 }
 
 Future<Map<String, dynamic>> updateNote(
-    String id, String title, String body, String? categoryId) async {
+    String id, String title, String body, String category) async {
   final res = await http.put(
     _u('/api/notes/$id'),
     headers: await _authHeaders(),
     body: jsonEncode({
       'title': title,
       'body': body,
-      'categoryId': categoryId ?? '',
+      'category': category,
+      'categoryId': '',
     }),
   );
   return _handle(res);
