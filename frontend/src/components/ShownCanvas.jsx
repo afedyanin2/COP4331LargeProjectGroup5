@@ -1,37 +1,44 @@
-import {useEffect, useRef, forwardRef, useImperativeHandle} from 'react';
+import {
+  useEffect,
+  useRef
+} from 'react';
 
-function ShownCanvas({drawing = []})
-{
-    const canvasRef = useRef(null);
+import {
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  drawStroke,
+  normalizeDrawing
+} from '../utils/canvasData.js';
 
-    
-    useEffect(() =>
-    {
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
+function ShownCanvas({ drawing = [] }) {
+  const canvasRef = useRef(null);
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+  useEffect(() => {
+    const canvas = canvasRef.current;
 
-        for (const stroke of drawing)
-        {
-            for (const point of stroke)
-            {
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, 5, 0, Math.PI*2);
-                ctx.fillStyle = "green";
-                ctx.fill();
-            }
-        }
-    }, [drawing]);
+    if (!canvas) {
+      return;
+    }
 
-    return (
-        <canvas
-            className="canvas"
-            ref={canvasRef}
-            width={800}
-            height={500}
-        />
-    )
-};
+    const context = canvas.getContext('2d');
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = 'white';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (const stroke of normalizeDrawing(drawing)) {
+      drawStroke(context, stroke);
+    }
+  }, [drawing]);
+
+  return (
+    <canvas
+      className="canvas shown-canvas"
+      ref={canvasRef}
+      width={CANVAS_WIDTH}
+      height={CANVAS_HEIGHT}
+    />
+  );
+}
 
 export default ShownCanvas;

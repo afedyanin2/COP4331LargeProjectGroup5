@@ -6,6 +6,7 @@ import '../models/models.dart';
 import '../theme/app_colors.dart';
 import '../theme/tokens.dart';
 import '../widgets/brand.dart';
+import '../widgets/note_canvas.dart';
 import 'note_editor_screen.dart';
 import 'settings_screen.dart';
 
@@ -75,6 +76,18 @@ class _NotesScreenState extends State<NotesScreen> {
     return list.toList();
   }
 
+  String _notePreview(Note note) {
+    if (isCanvasBody(note.body)) {
+      return 'Canvas drawing';
+    }
+
+    final body = note.body.trim();
+
+    return body.isEmpty
+        ? 'This note has no content.'
+        : body;
+  }
+
   Future<void> _togglePin(Note note) async {
     final next = !note.isPinned;
     // Optimistic flip, then reload so the server's pinned-first order applies.
@@ -93,10 +106,17 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _shareNote(Note note) async {
+    final title =
+        note.title.isEmpty ? 'Untitled note' : note.title;
+
+    final sharedBody = isCanvasBody(note.body)
+        ? '(Canvas note — open in Noteriety to view.)'
+        : note.body;
+
     try {
       await Share.share(
-        '${note.title.isEmpty ? 'Untitled note' : note.title}\n\n${note.body}',
-        subject: note.title.isEmpty ? 'Untitled note' : note.title,
+        '$title\n\n$sharedBody',
+        subject: title,
       );
     } catch (e) {
       _snack('Could not share: $e');
@@ -497,7 +517,7 @@ class _NotesScreenState extends State<NotesScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 5),
                 child: Text(
-                  note.body.isEmpty ? 'This note has no content.' : note.body,
+                  _notePreview(note),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

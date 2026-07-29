@@ -1,6 +1,12 @@
 import { useRef, useEffect, useMemo, useState } from 'react';
 import CanvasWorkspace from '../components/CanvasWorkspace.jsx';
 import ShownCanvas from '../components/ShownCanvas.jsx';
+import {
+  decodeCanvasBody,
+  drawStroke,
+  encodeCanvasBody,
+  normalizeDrawing
+} from '../utils/canvasData.js';
 
 const DEFAULT_CATEGORY = 'Uncategorized';
 const LEGACY_NOTES_KEY = 'noterietyNotes';
@@ -65,15 +71,23 @@ function toTimestamp(value, fallback = Date.now()) {
 
 function normalizeNote(note) {
   const id = String(note?._id || note?.id || '');
+  const body = String(note?.body ?? note?.content ?? '');
+  const bodyDrawing = decodeCanvasBody(body);
+  const storedDrawing = normalizeDrawing(note?.drawing);
+  const drawing =
+    bodyDrawing && bodyDrawing.length > 0
+      ? bodyDrawing
+      : storedDrawing;
 
   return {
     id,
     title: String(note?.title || 'Untitled Note'),
-    content: String(note?.body ?? note?.content ?? ''),
+    content: bodyDrawing ? '' : body,
     category: String(note?.category || DEFAULT_CATEGORY),
     tags: Array.isArray(note?.tags) ? note.tags : [],
     pinned: Boolean(note?.isPinned ?? note?.pinned),
-    drawing: Array.isArray(note?.drawing) ? note.drawing : [],
+    drawing,
+    isCanvas: Boolean(bodyDrawing) || drawing.length > 0,
     createdAt: toTimestamp(note?.createdAt),
     updatedAt: toTimestamp(note?.updatedAt)
   };
@@ -287,7 +301,8 @@ function NoteTakingPage() {
 
   function beginEditing(note) {
     setSelectedNoteId(note.id);
-    setDrawing(note.drawing || []);
+    setDrawing(normalizeDrawing(note.drawing));
+    setEditorMode(note.isCanvas || note.drawing.length > 0 ? 'canvas' : 'text');
     setFormData({
       title: note.title,
       content: note.content,
@@ -332,12 +347,17 @@ function NoteTakingPage() {
       )
     ];
 
+    const normalizedDrawing = normalizeDrawing(drawing);
+    const savingCanvas = editorMode === 'canvas';
+
     const payload = {
       title: formData.title.trim() || 'Untitled Note',
-      body: formData.content.trim(),
+      body: savingCanvas
+        ? encodeCanvasBody(normalizedDrawing)
+        : formData.content.trim(),
       category: formData.category.trim() || DEFAULT_CATEGORY,
       tags,
-      drawing
+      drawing: savingCanvas ? normalizedDrawing : []
     };
 
     setIsSaving(true);
@@ -529,7 +549,9 @@ function NoteTakingPage() {
   }
 
   function downloadCanvas(note) {
-    if (!Array.isArray(note.drawing) || note.drawing.length === 0) {
+    const drawingToDownload = normalizeDrawing(note.drawing);
+
+    if (drawingToDownload.length === 0) {
       return;
     }
 
@@ -541,13 +563,8 @@ function NoteTakingPage() {
     context.fillStyle = 'white';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    for (const stroke of note.drawing) {
-      for (const point of stroke) {
-        context.beginPath();
-        context.arc(point.x, point.y, 5, 0, Math.PI * 2);
-        context.fillStyle = 'green';
-        context.fill();
-      }
+    for (const stroke of drawingToDownload) {
+      drawStroke(context, stroke);
     }
 
     const link = document.createElement('a');
@@ -856,7 +873,9 @@ function NoteTakingPage() {
                       note.content ? '' : 'is-empty'
                     }`}
                   >
-                    {note.content || 'This note has no content.'}
+                    {note.isCanvas
+                      ? 'Canvas drawing'
+                      : note.content || 'This note has no content.'}
                   </p>
 
                   <div className="workspace-note-meta">
@@ -1104,44 +1123,64 @@ function NoteTakingPage() {
               
               <div
                 className={`note-reader-content ${
-                  (selectedNote.content) ? '' : 'is-empty'
+                  selectedNote.content || selectedNote.isCanvas
+                    ? ''
+                    : 'is-empty'
                 }`}
               >
                 {selectedNote.content ? (
-                  <p>
-                    {selectedNote.content}
-                  </p>
-                ) : (
-                  <>
-                    <svg
-                      width="26"
-                      height="26"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <path d="M14 2v6h6" />
-                      <path d="M12 12v6M9 15h6" />
-                    </svg>
-                    <h3>No content yet</h3>
-                    <p>Add some text and it&rsquo;ll show up here.</p>
-                    <button
-                      type="button"
-                      className="editor-primary-button"
-                      onClick={() => beginEditing(selectedNote)}
-                    >
-                      Add content
-                    </button>
-                  </>
-                )}
-                    <ShownCanvas
-                      drawing={selectedNote.drawing || []}
-                    />
+              <p>{selectedNote.content}</p>
+            ) : !selectedNote.isCanvas ? (
+              <>
+                <svg
+                  width="26"
+                  height="26"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                  <path d="M12 12v6M9 15h6" />
+                </svg>
+
+                <h3>No content yet</h3>
+
+                <p>
+                  Add some text and it&rsquo;ll show up here.
+                </p>
+
+                <button
+                  type="button"
+                  className="editor-primary-button"
+                  onClick={() => beginEditing(selectedNote)}
+                >
+                  Add content
+                </button>
+              </>
+            ) : selectedNote.drawing.length > 0 ? (
+              <ShownCanvas drawing={selectedNote.drawing} />
+            ) : (
+              <>
+                <h3>Empty canvas</h3>
+
+                <p>
+                  Edit this note to start drawing.
+                </p>
+
+                <button
+                  type="button"
+                  className="editor-primary-button"
+                  onClick={() => beginEditing(selectedNote)}
+                >
+                  Start drawing
+                </button>
+              </>
+            )}
               </div>
             </article>
           ) : (

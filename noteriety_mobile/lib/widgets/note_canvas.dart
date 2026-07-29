@@ -118,6 +118,12 @@ class _StrokePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / kCanvasWidth;
+    final scaleY = size.height / kCanvasHeight;
+
+    canvas.save();
+    canvas.scale(scaleX, scaleY);
+
     for (final stroke in strokes) {
       if (stroke.points.isEmpty) continue;
 
@@ -138,12 +144,20 @@ class _StrokePainter extends CustomPainter {
         continue;
       }
 
-      final path = Path()..moveTo(stroke.points.first.dx, stroke.points.first.dy);
+      final path = Path()
+        ..moveTo(
+          stroke.points.first.dx,
+          stroke.points.first.dy,
+        );
+
       for (final point in stroke.points.skip(1)) {
         path.lineTo(point.dx, point.dy);
       }
+
       canvas.drawPath(path, paint);
     }
+
+    canvas.restore();
   }
 
   @override
@@ -341,11 +355,19 @@ class _EraserPreviewPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / kCanvasWidth;
+    final scaleY = size.height / kCanvasHeight;
+
+    canvas.save();
+    canvas.scale(scaleX, scaleY);
+
     final paint = Paint()
       ..color = Colors.black54
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
+
     canvas.drawCircle(position, radius, paint);
+    canvas.restore();
   }
 
   @override
