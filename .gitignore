@@ -2,3 +2,6 @@ node_modules/
 .env
 frontend/node_modules/
 frontend/dist/
+noteriety_mobile/.dart_tool/
+noteriety_mobile/build/
+noteriety_mobile/.flutter-plugins-dependencies
