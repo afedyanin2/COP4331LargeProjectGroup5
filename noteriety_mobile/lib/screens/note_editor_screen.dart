@@ -313,11 +313,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
               ),
 
+              const SizedBox(height: 10),
+
               // Category input
               Padding(
-                padding: const EdgeInsets.only(
-                  top: 6,
-                  bottom: 2,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 2,
                 ),
                 child: Row(
                   children: [
@@ -374,6 +375,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
               ),
 
+              const SizedBox(height: 8),
+
               // Existing category quick-pick chips
               if (widget.existingCategories.isNotEmpty)
                 SizedBox(
@@ -396,11 +399,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   ),
                 ),
 
+              const SizedBox(height: 14),
+
               // Text/Canvas mode selector
               Padding(
                 padding: const EdgeInsets.only(
-                  top: 4,
-                  bottom: 10,
+                  bottom: 14,
                 ),
                 child: Row(
                   children: [
