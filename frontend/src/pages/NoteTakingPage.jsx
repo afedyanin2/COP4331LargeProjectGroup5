@@ -5,31 +5,40 @@ import ShownCanvas from '../components/ShownCanvas.jsx';
 
 const DEFAULT_CATEGORY = 'Uncategorized';
 
-function getStoredNotes() {
-  try {
-    const storedNotes = localStorage.getItem('noterietyNotes');
-    const parsedNotes = storedNotes ? JSON.parse(storedNotes) : [];
-    console.log("Loaded notes:", parsedNotes);
+// --- Server-backed API helpers (per-user; replaces localStorage) -----------
+// The login page stores the JWT under 'noterietyToken'; every notes request
+// carries it so the backend returns ONLY this user's notes.
+function authHeaders() {
+  const token = localStorage.getItem('noterietyToken') || '';
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`
+  };
+}
 
-    if (!Array.isArray(parsedNotes)) {
-      return [];
-    }
-
-    return parsedNotes.map((note) => ({
-      ...note,
-      category: note.category || DEFAULT_CATEGORY,
-      tags: Array.isArray(note.tags) ? note.tags : [],
-      pinned: Boolean(note.pinned),
-      createdAt: note.createdAt || note.id || Date.now(),
-      updatedAt: note.updatedAt || note.id || Date.now()
-    }));
-  } catch {
-    return [];
-  }
+// Translate a server note (Mongo shape) into the shape this component uses.
+// Server: _id, body, isPinned, category, tags, drawing, createdAt(ISO)
+// Here:   id,  content, pinned, category, tags, drawing, createdAt(ms)
+function mapServerNote(serverNote) {
+  return {
+    id: serverNote._id,
+    title: serverNote.title || '',
+    content: serverNote.body || '',
+    category: serverNote.category || DEFAULT_CATEGORY,
+    tags: Array.isArray(serverNote.tags) ? serverNote.tags : [],
+    pinned: Boolean(serverNote.isPinned),
+    drawing: Array.isArray(serverNote.drawing) ? serverNote.drawing : [],
+    createdAt: serverNote.createdAt
+      ? Date.parse(serverNote.createdAt)
+      : Date.now(),
+    updatedAt: serverNote.updatedAt
+      ? Date.parse(serverNote.updatedAt)
+      : Date.now()
+  };
 }
 
 function NoteTakingPage() {
-  const [notes, setNotes] = useState(getStoredNotes);
+  const [notes, setNotes] = useState([]);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [activeView, setActiveView] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,9 +60,11 @@ function NoteTakingPage() {
     tags: ''
   });
 
+  // Load this user's notes from the server once, on mount.
   useEffect(() => {
-    localStorage.setItem('noterietyNotes', JSON.stringify(notes));
-  }, [notes]);
+    loadNotes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     function closeMenu(event) {
@@ -135,6 +146,21 @@ function NoteTakingPage() {
       });
   }, [notes, activeView, searchTerm]);
 
+  // Fetch the logged-in user's notes and replace local state with them.
+  async function loadNotes() {
+    try {
+      const response = await fetch('/api/notes', { headers: authHeaders() });
+      const data = await response.json();
+      if (data.error) {
+        console.error('Load notes error:', data.error);
+        return;
+      }
+      setNotes((data.notes || []).map(mapServerNote));
+    } catch (error) {
+      console.error('Load notes failed:', error);
+    }
+  }
+
   function resetForm() {
     setFormData({
       title: '',
@@ -197,17 +223,16 @@ function NoteTakingPage() {
     }
   }
 
-  function handleSaveNote(event) {
+  async function handleSaveNote(event) {
     event.preventDefault();
 
     const currentDrawing = drawing;
 
-    if (!formData.title.trim() && !formData.content.trim() && currentDrawing.length === 0) 
+    if (!formData.title.trim() && !formData.content.trim() && currentDrawing.length === 0)
     {
       return;
     }
 
-    const currentTime = Date.now();
     const tags = [
       ...new Set(
         formData.tags
@@ -217,37 +242,50 @@ function NoteTakingPage() {
       )
     ];
 
-
-    const noteData = {
+    // Payload the backend understands. content -> body so the note text also
+    // shows up on mobile; category/tags/drawing ride along as extra fields.
+    // categoryId stays '' because the web uses free-text categories.
+    const payload = {
       title: formData.title.trim() || 'Untitled Note',
-      content: formData.content.trim(),
+      body: formData.content.trim(),
+      categoryId: '',
       category: formData.category.trim() || DEFAULT_CATEGORY,
       tags,
-      updatedAt: currentTime,
-      drawing: currentDrawing,
+      drawing: currentDrawing
     };
 
-    if (isCreating) {
-      const newNote = {
-        id: currentTime,
-        ...noteData,
-        pinned: false,
-        createdAt: currentTime
-      };
-
-      setNotes((currentNotes) => [newNote, ...currentNotes]);
-      setSelectedNoteId(newNote.id);
-    } else {
-      setNotes((currentNotes) =>
-        currentNotes.map((note) =>
-          note.id === selectedNoteId
-            ? {
-                ...note,
-                ...noteData
-              }
-            : note
-        )
-      );
+    try {
+      if (isCreating) {
+        const response = await fetch('/api/notes', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (data.error) {
+          console.error('Create note error:', data.error);
+          return;
+        }
+        await loadNotes();
+        if (data.note && data.note._id) {
+          setSelectedNoteId(data.note._id);
+        }
+      } else {
+        const response = await fetch(`/api/notes/${selectedNoteId}`, {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (data.error) {
+          console.error('Update note error:', data.error);
+          return;
+        }
+        await loadNotes();
+      }
+    } catch (error) {
+      console.error('Save note failed:', error);
+      return;
     }
 
     resetForm();
@@ -255,18 +293,25 @@ function NoteTakingPage() {
     setIsEditing(false);
   }
 
-  function togglePin(noteId) {
-    setNotes((currentNotes) =>
-      currentNotes.map((note) =>
-        note.id === noteId
-          ? {
-              ...note,
-              pinned: !note.pinned,
-              updatedAt: Date.now()
-            }
-          : note
-      )
-    );
+  async function togglePin(noteId) {
+    const target = notes.find((note) => note.id === noteId);
+    const nextPinned = target ? !target.pinned : true;
+
+    try {
+      const response = await fetch(`/api/notes/${noteId}/pin`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ isPinned: nextPinned })
+      });
+      const data = await response.json();
+      if (data.error) {
+        console.error('Toggle pin error:', data.error);
+      } else {
+        await loadNotes();
+      }
+    } catch (error) {
+      console.error('Toggle pin failed:', error);
+    }
 
     setOpenMenuId(null);
   }
@@ -276,14 +321,26 @@ function NoteTakingPage() {
     setOpenMenuId(null);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!noteToDelete) {
       return;
     }
 
-    setNotes((currentNotes) =>
-      currentNotes.filter((note) => note.id !== noteToDelete.id)
-    );
+    try {
+      const response = await fetch(`/api/notes/${noteToDelete.id}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      const data = await response.json();
+      if (data.error) {
+        console.error('Delete note error:', data.error);
+        return;
+      }
+      await loadNotes();
+    } catch (error) {
+      console.error('Delete note failed:', error);
+      return;
+    }
 
     if (selectedNoteId === noteToDelete.id) {
       setSelectedNoteId(null);
