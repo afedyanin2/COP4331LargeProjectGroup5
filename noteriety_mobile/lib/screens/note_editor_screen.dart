@@ -13,6 +13,8 @@ class NoteEditorScreen extends StatefulWidget {
   // Categories already used by other notes.
   final List<String> existingCategories;
 
+  final Note? note; // null => creating
+  final List<String> existingCategories; // for quick-pick chips
   const NoteEditorScreen({
     super.key,
     this.note,
@@ -66,6 +68,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       _editorMode = 'text';
       _body = TextEditingController(text: existingBody);
     }
+    _title = TextEditingController(text: widget.note?.title ?? '');
+    _body = TextEditingController(text: widget.note?.body ?? '');
+    _category = TextEditingController(
+      text: widget.note?.category ?? kUncategorized,
+    );
   }
 
   @override
@@ -93,6 +100,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         ? kUncategorized
         : _category.text.trim();
 
+    // The backend requires a non-empty title.
+    final finalTitle =
+        _title.text.trim().isEmpty ? 'Untitled note' : _title.text.trim();
+    final category =
+        _category.text.trim().isEmpty ? kUncategorized : _category.text.trim();
     setState(() => _busy = true);
 
     try {
@@ -113,6 +125,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
       if (mounted) {
         Navigator.pop(context);
+        await createNote(finalTitle, _body.text, category);
+      } else {
+        await updateNote(widget.note!.id, finalTitle, _body.text, category);
       }
     } catch (e) {
       _snack('Could not save: $e');
@@ -371,6 +386,77 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                       ),
                     ),
                   ],
+              // Category: free-text name (shared with web), with quick-pick
+              // chips of categories that already exist.
+              Padding(
+                padding: const EdgeInsets.only(top: 6, bottom: 2),
+                child: Row(
+                  children: [
+                    Text('Category',
+                        style: TextStyle(
+                          fontFamilyFallback: AppFonts.mono,
+                          fontSize: 11,
+                          letterSpacing: 1.4,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textMuted,
+                        )),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _category,
+                        cursorColor: colors.primary,
+                        textCapitalization: TextCapitalization.words,
+                        style: TextStyle(color: colors.text, fontSize: 14),
+                        decoration: InputDecoration(
+                          isDense: true,
+                          hintText: kUncategorized,
+                          hintStyle: TextStyle(color: colors.textMuted),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: colors.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                                BorderSide(color: colors.primary, width: 1.4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (widget.existingCategories.isNotEmpty)
+                SizedBox(
+                  height: 34,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (final name in widget.existingCategories)
+                        _chip(name, _category.text.trim() == name,
+                            () => setState(() => _category.text = name)),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 4),
+              // Body
+              Expanded(
+                child: TextField(
+                  controller: _body,
+                  cursorColor: colors.primary,
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  style: TextStyle(
+                      fontSize: 16, height: 1.45, color: colors.text),
+                  decoration: InputDecoration(
+                    hintText: 'Start writing...',
+                    hintStyle: TextStyle(color: colors.textMuted),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.only(top: 8),
+                  ),
                 ),
               ),
 
