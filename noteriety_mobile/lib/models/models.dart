@@ -9,11 +9,15 @@ String _asId(dynamic v) {
   return v.toString();
 }
 
+/// The category name used when a note has none — matches the web app.
+const String kUncategorized = 'Uncategorized';
+
 class Note {
   final String id;
   final String title;
   final String body;
-  final String? categoryId;
+  final String? categoryId; // legacy; unused since categories moved to names
+  final String category; // free-text category name, shared with the web app
   final bool isPinned;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -23,6 +27,7 @@ class Note {
     required this.title,
     required this.body,
     required this.categoryId,
+    required this.category,
     required this.isPinned,
     required this.createdAt,
     required this.updatedAt,
@@ -30,11 +35,13 @@ class Note {
 
   factory Note.fromJson(Map<String, dynamic> json) {
     final rawCat = json['categoryId'];
+    final rawName = (json['category'] ?? '').toString().trim();
     return Note(
       id: _asId(json['_id'] ?? json['id']),
       title: (json['title'] ?? '') as String,
       body: (json['body'] ?? '') as String,
       categoryId: (rawCat == null || rawCat == '') ? null : rawCat.toString(),
+      category: rawName.isEmpty ? kUncategorized : rawName,
       isPinned: json['isPinned'] == true,
       createdAt: _parseDate(json['createdAt']),
       updatedAt: _parseDate(json['updatedAt']),
@@ -46,6 +53,7 @@ class Note {
         title: title,
         body: body,
         categoryId: categoryId,
+        category: category,
         isPinned: isPinned ?? this.isPinned,
         createdAt: createdAt,
         updatedAt: updatedAt,

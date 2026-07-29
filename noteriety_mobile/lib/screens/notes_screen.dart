@@ -19,8 +19,7 @@ class NotesScreen extends StatefulWidget {
 
 class _NotesScreenState extends State<NotesScreen> {
   List<Note> _notes = [];
-  List<Category> _categories = [];
-  String? _filter; // null = All; 'uncategorized'; or a category id
+  String? _filter; // null = All; otherwise a category name (e.g. 'Uncategorized')
   String _search = '';
   bool _loading = true;
   String _error = '';
@@ -30,8 +29,7 @@ class _NotesScreenState extends State<NotesScreen> {
   @override
   void initState() {
     super.initState();
-    _load(_filter);
-    _loadCategories();
+    _load();
   }
 
   @override
@@ -40,11 +38,10 @@ class _NotesScreenState extends State<NotesScreen> {
     super.dispose();
   }
 
-  Future<void> _load(String? categoryId) async {
+  Future<void> _load() async {
     setState(() => _error = '');
     try {
-      final data = await getNotes(
-          (categoryId != null && categoryId.isNotEmpty) ? categoryId : null);
+      final data = await getNotes();
       if (mounted) setState(() => _notes = data);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -55,32 +52,27 @@ class _NotesScreenState extends State<NotesScreen> {
     }
   }
 
-  // Categories are optional — if the endpoint fails we just hide the row.
-  Future<void> _loadCategories() async {
-    try {
-      final cats = await getCategories();
-      if (mounted) setState(() => _categories = cats);
-    } catch (_) {
-      if (mounted) setState(() => _categories = []);
-    }
+  // Category names derived from the notes themselves (like the web app),
+  // always including 'Uncategorized', sorted alphabetically.
+  List<String> get _categoryNames {
+    final set = <String>{kUncategorized, ..._notes.map((n) => n.category)};
+    final list = set.toList()..sort();
+    return list;
   }
 
   List<Note> get _visible {
     final q = _search.trim().toLowerCase();
-    if (q.isEmpty) return _notes;
-    return _notes
-        .where((n) =>
-            n.title.toLowerCase().contains(q) ||
-            n.body.toLowerCase().contains(q))
-        .toList();
-  }
-
-  String? _catName(String? id) {
-    if (id == null) return null;
-    for (final c in _categories) {
-      if (c.id == id) return c.name;
+    Iterable<Note> list = _notes;
+    if (_filter != null) {
+      list = list.where((n) => n.category == _filter);
     }
-    return null;
+    if (q.isNotEmpty) {
+      list = list.where((n) =>
+          n.title.toLowerCase().contains(q) ||
+          n.body.toLowerCase().contains(q) ||
+          n.category.toLowerCase().contains(q));
+    }
+    return list.toList();
   }
 
   Future<void> _togglePin(Note note) async {
@@ -93,10 +85,10 @@ class _NotesScreenState extends State<NotesScreen> {
     });
     try {
       await setPinned(note.id, next);
-      await _load(_filter);
+      await _load();
     } catch (e) {
       _snack('Could not update pin: $e');
-      await _load(_filter);
+      await _load();
     }
   }
 
@@ -145,91 +137,19 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Future<void> _openEditor(Note? note) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => NoteEditorScreen(note: note)),
+      MaterialPageRoute(
+        builder: (_) =>
+            NoteEditorScreen(note: note, existingCategories: _categoryNames),
+      ),
     );
     // Refresh on return (matches RN's remount-after-save).
-    await _load(_filter);
-    await _loadCategories();
+    await _load();
   }
 
   Future<void> _openSettings() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => SettingsScreen(onLogout: widget.onLogout),
-      ),
-    );
-  }
-
-  Future<void> _newCategory() async {
-    final colors = context.colors;
-    final ctrl = TextEditingController();
-    bool saving = false;
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          backgroundColor: colors.surface,
-          title: Text('New category',
-              style: TextStyle(
-                  color: colors.text, fontWeight: FontWeight.w700)),
-          content: TextField(
-            controller: ctrl,
-            autofocus: true,
-            style: TextStyle(color: colors.text),
-            cursorColor: colors.primary,
-            decoration: InputDecoration(
-              hintText: 'e.g. School',
-              hintStyle: TextStyle(color: colors.textMuted),
-              filled: true,
-              fillColor: colors.surfaceAlt,
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: colors.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: colors.primary),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: saving ? null : () => Navigator.pop(ctx),
-              child: Text('Cancel', style: TextStyle(color: colors.textMuted)),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: colors.primary),
-              onPressed: saving
-                  ? null
-                  : () async {
-                      final name = ctrl.text.trim();
-                      if (name.isEmpty) return;
-                      setLocal(() => saving = true);
-                      try {
-                        await createCategory(name);
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        await _loadCategories();
-                      } catch (e) {
-                        setLocal(() => saving = false);
-                        _snack('Could not create category: $e');
-                      }
-                    },
-              child: saving
-                  ? SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(colors.onPrimary),
-                      ),
-                    )
-                  : Text('Create',
-                      style: TextStyle(color: colors.onPrimary)),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -379,20 +299,11 @@ class _NotesScreenState extends State<NotesScreen> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
-                    _chip('All', _filter == null, () {
-                      setState(() => _filter = null);
-                      _load(null);
-                    }),
-                    _chip('Uncategorized', _filter == 'uncategorized', () {
-                      setState(() => _filter = 'uncategorized');
-                      _load('uncategorized');
-                    }),
-                    for (final c in _categories)
-                      _chip(c.name, _filter == c.id, () {
-                        setState(() => _filter = c.id);
-                        _load(c.id);
-                      }),
-                    _chip('+ New', false, _newCategory),
+                    _chip('All', _filter == null,
+                        () => setState(() => _filter = null)),
+                    for (final name in _categoryNames)
+                      _chip(name, _filter == name,
+                          () => setState(() => _filter = name)),
                   ],
                 ),
               ),
@@ -421,7 +332,7 @@ class _NotesScreenState extends State<NotesScreen> {
                         child: CircularProgressIndicator(color: colors.primary))
                     : RefreshIndicator(
                         color: colors.primary,
-                        onRefresh: () => _load(_filter),
+                        onRefresh: () => _load(),
                         child: _visible.isEmpty
                             ? _emptyState(colors)
                             : ListView.builder(
@@ -496,7 +407,7 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Widget _noteCard(Note note, AppColors colors) {
-    final name = _catName(note.categoryId);
+    final name = note.category;
     final date = _formatDate(note.updatedAt ?? note.createdAt);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -605,7 +516,7 @@ class _NotesScreenState extends State<NotesScreen> {
                   children: [
                     Flexible(
                       child: Text(
-                        name ?? 'Uncategorized',
+                        name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: _meta(colors),
