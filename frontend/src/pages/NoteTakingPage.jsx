@@ -1,54 +1,122 @@
 import { useRef, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import CanvasWorkspace from '../components/CanvasWorkspace.jsx';
 import ShownCanvas from '../components/ShownCanvas.jsx';
 
 const DEFAULT_CATEGORY = 'Uncategorized';
+const LEGACY_NOTES_KEY = 'noterietyNotes';
 
-// --- Server-backed API helpers (per-user; replaces localStorage) -----------
-// The login page stores the JWT under 'noterietyToken'; every notes request
-// carries it so the backend returns ONLY this user's notes.
-function authHeaders() {
-  const token = localStorage.getItem('noterietyToken') || '';
+async function readJsonResponse(response) {
+  const responseText = await response.text();
+
+  if (!responseText) {
+    throw new Error(
+      `Server returned an empty response (${response.status}).`
+    );
+  }
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    throw new Error(
+      `Server returned an invalid response (${response.status}).`
+    );
+  }
+}
+
+async function apiRequest(path, options = {}) {
+  const token = localStorage.getItem('noterietyToken');
+
+  if (!token) {
+    throw new Error(
+      'Your login session is missing. Please log in again.'
+    );
+  }
+
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      ...(options.body
+        ? { 'Content-Type': 'application/json' }
+        : {}),
+      ...options.headers,
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  const data = await readJsonResponse(response);
+
+  if (!response.ok || data.error) {
+    throw new Error(
+      data.error || `Request failed (${response.status}).`
+    );
+  }
+
+  return data;
+}
+
+function toTimestamp(value, fallback = Date.now()) {
+  if (!value) {
+    return fallback;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? fallback : timestamp;
+}
+
+function normalizeNote(note) {
+  const id = String(note?._id || note?.id || '');
+
   return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`
+    id,
+    title: String(note?.title || 'Untitled Note'),
+    content: String(note?.body ?? note?.content ?? ''),
+    category: String(note?.category || DEFAULT_CATEGORY),
+    tags: Array.isArray(note?.tags) ? note.tags : [],
+    pinned: Boolean(note?.isPinned ?? note?.pinned),
+    drawing: Array.isArray(note?.drawing) ? note.drawing : [],
+    createdAt: toTimestamp(note?.createdAt),
+    updatedAt: toTimestamp(note?.updatedAt)
   };
 }
 
-// Translate a server note (Mongo shape) into the shape this component uses.
-// Server: _id, body, isPinned, category, tags, drawing, createdAt(ISO)
-// Here:   id,  content, pinned, category, tags, drawing, createdAt(ms)
-function mapServerNote(serverNote) {
-  return {
-    id: serverNote._id,
-    title: serverNote.title || '',
-    content: serverNote.body || '',
-    category: serverNote.category || DEFAULT_CATEGORY,
-    tags: Array.isArray(serverNote.tags) ? serverNote.tags : [],
-    pinned: Boolean(serverNote.isPinned),
-    drawing: Array.isArray(serverNote.drawing) ? serverNote.drawing : [],
-    createdAt: serverNote.createdAt
-      ? Date.parse(serverNote.createdAt)
-      : Date.now(),
-    updatedAt: serverNote.updatedAt
-      ? Date.parse(serverNote.updatedAt)
-      : Date.now()
-  };
+function getLegacyStoredNotes() {
+  try {
+    const storedNotes = localStorage.getItem(LEGACY_NOTES_KEY);
+    const parsedNotes = storedNotes ? JSON.parse(storedNotes) : [];
+
+    if (!Array.isArray(parsedNotes)) {
+      return [];
+    }
+
+    return parsedNotes.map((note) => ({
+      ...note,
+      category: note.category || DEFAULT_CATEGORY,
+      tags: Array.isArray(note.tags) ? note.tags : [],
+      pinned: Boolean(note.pinned),
+      drawing: Array.isArray(note.drawing) ? note.drawing : [],
+      createdAt: note.createdAt || note.id || Date.now(),
+      updatedAt: note.updatedAt || note.id || Date.now()
+    }));
+  } catch {
+    return [];
+  }
 }
 
 function NoteTakingPage() {
   const [notes, setNotes] = useState([]);
+  const [legacyNotes, setLegacyNotes] = useState(getLegacyStoredNotes);
+  const [isLoadingNotes, setIsLoadingNotes] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isImportingLegacy, setIsImportingLegacy] = useState(false);
+  const [notesError, setNotesError] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [activeView, setActiveView] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
   const [noteToDelete, setNoteToDelete] = useState(null);
-  const [editorMode, setEditorMode] = useState("");
-  const [isCanvas, setIsCanvas] = useState(false);
-  const [isNote, setIsNote] = useState(false);
+  const [editorMode, setEditorMode] = useState('text');
   const [mobileView, setMobileView] = useState('list');
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [drawing, setDrawing] = useState([]);
   const canvasWorkspaceRef = useRef(null);
@@ -62,8 +130,42 @@ function NoteTakingPage() {
 
   // Load this user's notes from the server once, on mount.
   useEffect(() => {
+    let isMounted = true;
+
+    async function loadNotes() {
+      setNotesError('');
+      setIsLoadingNotes(true);
+
+      try {
+        const data = await apiRequest('/api/notes');
+
+        if (isMounted) {
+          setNotes(
+            Array.isArray(data.notes)
+              ? data.notes.map(normalizeNote)
+              : []
+          );
+        }
+      } catch (error) {
+        console.error('Load notes failed:', error);
+
+        if (isMounted) {
+          setNotesError(
+            error.message || 'Unable to load your notes.'
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingNotes(false);
+        }
+      }
+    }
+
     loadNotes();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -120,7 +222,7 @@ function NoteTakingPage() {
           note.content.toLowerCase().includes(normalizedSearch) ||
           note.category.toLowerCase().includes(normalizedSearch) ||
           note.tags.some((tag) =>
-            tag.toLowerCase().includes(normalizedSearch)
+            String(tag).toLowerCase().includes(normalizedSearch)
           );
 
         if (!matchesSearch) {
@@ -146,21 +248,6 @@ function NoteTakingPage() {
       });
   }, [notes, activeView, searchTerm]);
 
-  // Fetch the logged-in user's notes and replace local state with them.
-  async function loadNotes() {
-    try {
-      const response = await fetch('/api/notes', { headers: authHeaders() });
-      const data = await response.json();
-      if (data.error) {
-        console.error('Load notes error:', data.error);
-        return;
-      }
-      setNotes((data.notes || []).map(mapServerNote));
-    } catch (error) {
-      console.error('Load notes failed:', error);
-    }
-  }
-
   function resetForm() {
     setFormData({
       title: '',
@@ -168,6 +255,8 @@ function NoteTakingPage() {
       category: DEFAULT_CATEGORY,
       tags: ''
     });
+    setDrawing([]);
+    setEditorMode('text');
   }
 
   function handleFormChange(event) {
@@ -181,7 +270,6 @@ function NoteTakingPage() {
 
   function beginNewNote() {
     resetForm();
-    setDrawing([]);
     setSelectedNoteId(null);
     setIsCreating(true);
     setIsEditing(true);
@@ -225,11 +313,13 @@ function NoteTakingPage() {
 
   async function handleSaveNote(event) {
     event.preventDefault();
+    setNotesError('');
 
-    const currentDrawing = drawing;
-
-    if (!formData.title.trim() && !formData.content.trim() && currentDrawing.length === 0)
-    {
+    if (
+      !formData.title.trim() &&
+      !formData.content.trim() &&
+      drawing.length === 0
+    ) {
       return;
     }
 
@@ -242,78 +332,84 @@ function NoteTakingPage() {
       )
     ];
 
-    // Payload the backend understands. content -> body so the note text also
-    // shows up on mobile; category/tags/drawing ride along as extra fields.
-    // categoryId stays '' because the web uses free-text categories.
     const payload = {
       title: formData.title.trim() || 'Untitled Note',
       body: formData.content.trim(),
-      categoryId: '',
       category: formData.category.trim() || DEFAULT_CATEGORY,
       tags,
-      drawing: currentDrawing
+      drawing
     };
 
+    setIsSaving(true);
+
     try {
+      const data = await apiRequest(
+        isCreating
+          ? '/api/notes'
+          : `/api/notes/${encodeURIComponent(selectedNoteId)}`,
+        {
+          method: isCreating ? 'POST' : 'PUT',
+          body: JSON.stringify(payload)
+        }
+      );
+
+      const savedNote = normalizeNote(data.note);
+
       if (isCreating) {
-        const response = await fetch('/api/notes', {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify(payload)
-        });
-        const data = await response.json();
-        if (data.error) {
-          console.error('Create note error:', data.error);
-          return;
-        }
-        await loadNotes();
-        if (data.note && data.note._id) {
-          setSelectedNoteId(data.note._id);
-        }
+        setNotes((currentNotes) => [savedNote, ...currentNotes]);
       } else {
-        const response = await fetch(`/api/notes/${selectedNoteId}`, {
-          method: 'PUT',
-          headers: authHeaders(),
-          body: JSON.stringify(payload)
-        });
-        const data = await response.json();
-        if (data.error) {
-          console.error('Update note error:', data.error);
-          return;
-        }
-        await loadNotes();
+        setNotes((currentNotes) =>
+          currentNotes.map((note) =>
+            note.id === selectedNoteId ? savedNote : note
+          )
+        );
       }
+
+      setSelectedNoteId(savedNote.id);
+      resetForm();
+      setIsCreating(false);
+      setIsEditing(false);
     } catch (error) {
       console.error('Save note failed:', error);
-      return;
+      setNotesError(error.message || 'Unable to save the note.');
+    } finally {
+      setIsSaving(false);
     }
-
-    resetForm();
-    setIsCreating(false);
-    setIsEditing(false);
   }
 
   async function togglePin(noteId) {
-    const target = notes.find((note) => note.id === noteId);
-    const nextPinned = target ? !target.pinned : true;
+    const note = notes.find((item) => item.id === noteId);
 
-    try {
-      const response = await fetch(`/api/notes/${noteId}/pin`, {
-        method: 'PUT',
-        headers: authHeaders(),
-        body: JSON.stringify({ isPinned: nextPinned })
-      });
-      const data = await response.json();
-      if (data.error) {
-        console.error('Toggle pin error:', data.error);
-      } else {
-        await loadNotes();
-      }
-    } catch (error) {
-      console.error('Toggle pin failed:', error);
+    if (!note) {
+      return;
     }
 
-    setOpenMenuId(null);
+    setNotesError('');
+
+    try {
+      const data = await apiRequest(
+        `/api/notes/${encodeURIComponent(noteId)}/pin`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            isPinned: !note.pinned
+          })
+        }
+      );
+
+      const updatedNote = normalizeNote(data.note);
+
+      setNotes((currentNotes) =>
+        currentNotes.map((currentNote) =>
+          currentNote.id === noteId ? updatedNote : currentNote
+        )
+      );
+    } catch (error) {
+      console.error('Pin note failed:', error);
+      setNotesError(error.message || 'Unable to update the note.');
+    } finally {
+      setOpenMenuId(null);
+    }
   }
 
   function requestDelete(note) {
@@ -326,34 +422,77 @@ function NoteTakingPage() {
       return;
     }
 
+    setNotesError('');
+
     try {
-      const response = await fetch(`/api/notes/${noteToDelete.id}`, {
-        method: 'DELETE',
-        headers: authHeaders()
-      });
-      const data = await response.json();
-      if (data.error) {
-        console.error('Delete note error:', data.error);
-        return;
+      await apiRequest(
+        `/api/notes/${encodeURIComponent(noteToDelete.id)}`,
+        {
+          method: 'DELETE'
+        }
+      );
+
+      setNotes((currentNotes) =>
+        currentNotes.filter((note) => note.id !== noteToDelete.id)
+      );
+
+      if (selectedNoteId === noteToDelete.id) {
+        setSelectedNoteId(null);
+        setIsEditing(false);
+        setIsCreating(false);
+        setMobileView('list');
       }
-      await loadNotes();
+
+      setNoteToDelete(null);
     } catch (error) {
       console.error('Delete note failed:', error);
+      setNotesError(error.message || 'Unable to delete the note.');
+    }
+  }
+
+  async function importLegacyNotes() {
+    if (legacyNotes.length === 0) {
       return;
     }
 
-    if (selectedNoteId === noteToDelete.id) {
-      setSelectedNoteId(null);
-      setIsEditing(false);
-      setIsCreating(false);
-      setMobileView('list');
-    }
+    setNotesError('');
+    setIsImportingLegacy(true);
 
-    setNoteToDelete(null);
+    try {
+      const data = await apiRequest('/api/notes/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          notes: legacyNotes.map((note) => ({
+            title: note.title || 'Untitled Note',
+            body: note.content || '',
+            category: note.category || DEFAULT_CATEGORY,
+            tags: note.tags || [],
+            drawing: note.drawing || [],
+            pinned: Boolean(note.pinned),
+            createdAt: note.createdAt,
+            updatedAt: note.updatedAt
+          }))
+        })
+      });
+
+      const importedNotes = Array.isArray(data.notes)
+        ? data.notes.map(normalizeNote)
+        : [];
+
+      setNotes((currentNotes) => [...importedNotes, ...currentNotes]);
+      localStorage.removeItem(LEGACY_NOTES_KEY);
+      setLegacyNotes([]);
+    } catch (error) {
+      console.error('Import browser notes failed:', error);
+      setNotesError(
+        error.message || 'Unable to import the browser notes.'
+      );
+    } finally {
+      setIsImportingLegacy(false);
+    }
   }
 
   function downloadNote(note) {
-    console.log("download note reached", note);
     const fileContents = [
       note.title,
       '',
@@ -389,39 +528,32 @@ function NoteTakingPage() {
     setOpenMenuId(null);
   }
 
-  function downloadCanvas(note)
-  {
-    if (note.drawing.length === 0) return;
-    console.log("downloadCanvas reached", note.drawing);
+  function downloadCanvas(note) {
+    if (!Array.isArray(note.drawing) || note.drawing.length === 0) {
+      return;
+    }
 
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     canvas.width = 800;
     canvas.height = 500;
 
-    const ctx = canvas.getContext("2d")
+    const context = canvas.getContext('2d');
+    context.fillStyle = 'white';
+    context.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    for (const stroke of note.drawing)
-      {
-          for (const point of stroke)
-          {
-              ctx.beginPath();
-              ctx.arc(point.x, point.y, 5, 0, Math.PI*2);
-              ctx.fillStyle = "green";
-              ctx.fill();
-          }
+    for (const stroke of note.drawing) {
+      for (const point of stroke) {
+        context.beginPath();
+        context.arc(point.x, point.y, 5, 0, Math.PI * 2);
+        context.fillStyle = 'green';
+        context.fill();
       }
+    }
 
-    const url = canvas.toDataURL("image/png");
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${note.title || "canvas"}.png`;
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `${note.title || 'canvas'}.png`;
     link.click();
-    downloadLink.href = fileUrl;
-    downloadLink.download = `${note.title || "canvas"}.txt`;
   }
 
   function selectView(view) {
@@ -457,8 +589,44 @@ function NoteTakingPage() {
     return 'All Notes';
   }
 
+  if (isLoadingNotes) {
+    return (
+      <section className="page centered-page">
+        <h1>My Notes</h1>
+        <p>Loading your notes...</p>
+      </section>
+    );
+  }
+
   return (
     <section className="notes-workspace-page">
+      {notesError && (
+        <div className="content-section">
+          <p className="error-message">{notesError}</p>
+        </div>
+      )}
+
+      {legacyNotes.length > 0 && (
+        <div className="content-section">
+          <h2>Browser notes found</h2>
+          <p>
+            These are notes from the old browser-only storage. Log in to the
+            account that owns them, then import them once.
+          </p>
+          <button
+            type="button"
+            onClick={importLegacyNotes}
+            disabled={isImportingLegacy}
+          >
+            {isImportingLegacy
+              ? 'Importing...'
+              : `Import ${legacyNotes.length} browser note${
+                  legacyNotes.length === 1 ? '' : 's'
+                } into this account`}
+          </button>
+        </div>
+      )}
+
       <div
         className={`notes-workspace ${
           mobileView === 'editor' ? 'show-mobile-editor' : ''
