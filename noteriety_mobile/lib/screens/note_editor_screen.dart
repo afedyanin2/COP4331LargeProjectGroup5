@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-
 import '../api/api.dart';
 import '../models/models.dart';
 import '../theme/app_colors.dart';
 import '../theme/tokens.dart';
+import '../widgets/note_canvas.dart';
 
 class NoteEditorScreen extends StatefulWidget {
   final Note? note; // null => creating
@@ -21,13 +21,29 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   List<Category> _categories = [];
   bool _busy = false;
 
+  // 'text' | 'canvas' — mirrors 
+  String _editorMode = 'text';
+  List<Stroke> _drawing = [];
+
   bool get _isNew => widget.note == null;
 
   @override
   void initState() {
     super.initState();
     _title = TextEditingController(text: widget.note?.title ?? '');
-    _body = TextEditingController(text: widget.note?.body ?? '');
+
+    // If the saved body is canvas data, start in canvas mode
+    final existingBody = widget.note?.body ?? '';
+    final decoded = decodeCanvasBody(existingBody);
+    if (decoded != null) {
+      _editorMode = 'canvas';
+      _drawing = decoded;
+      _body = TextEditingController(text: '');
+    } else {
+      _editorMode = 'text';
+      _body = TextEditingController(text: existingBody);
+    }
+
     _categoryId = widget.note?.categoryId ?? '';
     getCategories().then((c) {
       if (mounted) setState(() => _categories = c);
@@ -42,15 +58,21 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   Future<void> _handleSave() async {
-    // The backend requires a non-empty title.
+    //backend requires a non-empty title.
     final finalTitle =
         _title.text.trim().isEmpty ? 'Untitled note' : _title.text.trim();
+
+    // Canvas notes encode their strokes into the body field; text notes
+    // just use the textarea content, same as before.
+    final finalBody =
+        _editorMode == 'canvas' ? encodeCanvasBody(_drawing) : _body.text;
+
     setState(() => _busy = true);
     try {
       if (_isNew) {
-        await createNote(finalTitle, _body.text, _categoryId);
+        await createNote(finalTitle, finalBody, _categoryId);
       } else {
-        await updateNote(widget.note!.id, finalTitle, _body.text, _categoryId);
+        await updateNote(widget.note!.id, finalTitle, finalBody, _categoryId);
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -62,6 +84,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   Future<void> _handleShare() async {
     final t = _title.text.trim().isEmpty ? 'Untitled note' : _title.text.trim();
+    if (_editorMode == 'canvas') {
+      try {
+        await Share.share('$t\n\n(Canvas note — open in Noteriety to view.)',
+            subject: t);
+      } catch (e) {
+        _snack('Could not share: $e');
+      }
+      return;
+    }
     try {
       await Share.share('$t\n\n${_body.text}', subject: t);
     } catch (e) {
@@ -196,23 +227,43 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     ),
                   ),
                 ),
-              // Body
-              Expanded(
-                child: TextField(
-                  controller: _body,
-                  cursorColor: colors.primary,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  style: TextStyle(
-                      fontSize: 16, height: 1.45, color: colors.text),
-                  decoration: InputDecoration(
-                    hintText: 'Start writing...',
-                    hintStyle: TextStyle(color: colors.textMuted),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.only(top: 8),
-                  ),
+              // Note / Canvas mode toggle — mirrors edit-mode-buttons.
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 10),
+                child: Row(
+                  children: [
+                    _modeButton(colors, 'Note', _editorMode == 'text',
+                        () => setState(() => _editorMode = 'text')),
+                    const SizedBox(width: 10),
+                    _modeButton(colors, 'Canvas', _editorMode == 'canvas',
+                        () => setState(() => _editorMode = 'canvas')),
+                  ],
                 ),
+              ),
+              // Body: text field or canvas, depending on mode.
+              Expanded(
+                child: _editorMode == 'text'
+                    ? TextField(
+                        controller: _body,
+                        cursorColor: colors.primary,
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        style: TextStyle(
+                            fontSize: 16, height: 1.45, color: colors.text),
+                        decoration: InputDecoration(
+                          hintText: 'Start writing...',
+                          hintStyle: TextStyle(color: colors.textMuted),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.only(top: 8),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        child: CanvasWorkspace(
+                          drawing: _drawing,
+                          onChanged: (next) => setState(() => _drawing = next),
+                        ),
+                      ),
               ),
               // Footer
               Padding(
@@ -267,6 +318,29 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
               fontSize: 13,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _modeButton(
+      AppColors colors, String label, bool active, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        decoration: BoxDecoration(
+          color: active ? colors.primary : colors.surface,
+          border: Border.all(color: active ? colors.primary : colors.border),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? colors.onPrimary : colors.text,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
           ),
         ),
       ),
