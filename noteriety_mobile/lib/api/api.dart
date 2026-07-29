@@ -4,11 +4,17 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
+
+/// If the live domain isn't up, swap for your computer's LAN IP while the
+/// backend runs locally, e.g. 'http://192.168.1.42:5000'
+/// (localhost does NOT work from a phone — the phone's localhost is itself).
 const String apiBase = 'https://noteriety-app.com';
 
 const String _tokenKey = 'noteriety_token';
 const String _emailKey = 'noteriety_email';
 
+/// Thrown for any backend-reported failure; `message` is the server's
+/// `error` string (or a friendly fallback for transport/parse failures).
 class ApiException implements Exception {
   final String message;
   ApiException(this.message);
@@ -126,6 +132,18 @@ Future<Map<String, dynamic>> resendVerification(String email) async {
     _u('/api/resend-verification'),
     headers: _jsonHeaders,
     body: jsonEncode({'email': email}),
+  );
+  return _handle(res);
+}
+
+/// Submits the emailed six-digit code. On success the backend creates the
+/// real account (emailVerified: true) and returns a message — but NO token,
+/// so the user still logs in afterward.
+Future<Map<String, dynamic>> verifyEmail(String email, String code) async {
+  final res = await http.post(
+    _u('/api/verify-email'),
+    headers: _jsonHeaders,
+    body: jsonEncode({'email': email, 'code': code}),
   );
   return _handle(res);
 }

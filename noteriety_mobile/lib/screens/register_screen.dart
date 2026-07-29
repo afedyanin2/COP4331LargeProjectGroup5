@@ -7,12 +7,14 @@ import '../widgets/password_rules.dart';
 import '../widgets/primary_button.dart';
 
 class RegisterScreen extends StatefulWidget {
-  final VoidCallback onRegistered; // token path: straight into the app
+  final VoidCallback onRegistered; // token path (unused by this backend)
+  final void Function(String email) onNeedsVerification; // -> code screen
   final VoidCallback onGoToLogin;
 
   const RegisterScreen({
     super.key,
     required this.onRegistered,
+    required this.onNeedsVerification,
     required this.onGoToLogin,
   });
 
@@ -20,8 +22,7 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> 
-{
+class _RegisterScreenState extends State<RegisterScreen> {
   final _first = TextEditingController();
   final _last = TextEditingController();
   final _email = TextEditingController();
@@ -30,13 +31,10 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   String _error = '';
   bool _busy = false;
-  bool _sent = false; // registered, awaiting email verification
 
   @override
-  void dispose() 
-  {
-    for (final c in [_first, _last, _email, _username, _password]) 
-    {
+  void dispose() {
+    for (final c in [_first, _last, _email, _username, _password]) {
       c.dispose();
     }
     super.dispose();
@@ -48,26 +46,22 @@ class _RegisterScreenState extends State<RegisterScreen>
     final username = _username.text.trim();
     final password = _password.text;
 
-    if (username.isEmpty || password.trim().isEmpty || email.isEmpty) 
-    {
+    if (username.isEmpty || password.trim().isEmpty || email.isEmpty) {
       setState(() => _error = 'Username, email, and password are required.');
       return;
     }
-    if (!email.contains('@')) 
-    {
+    if (!email.contains('@')) {
       setState(() => _error = 'Please enter a valid email address.');
       return;
     }
-    if (!isPasswordValid(password)) 
-    {
+    if (!isPasswordValid(password)) {
       setState(() =>
           _error = 'Password must be at least $minPasswordLength characters.');
       return;
     }
 
     setState(() => _busy = true);
-    try 
-    {
+    try {
       final data = await register(
         username: username,
         password: password,
@@ -81,8 +75,9 @@ class _RegisterScreenState extends State<RegisterScreen>
         if (!mounted) return;
         widget.onRegistered();
       } else {
-        // No token — the backend emailed a verification code. Confirm & bounce.
-        if (mounted) setState(() => _sent = true);
+        // Expected path: no token — the backend emailed a six-digit code and
+        // staged a pending registration. Hand off to the verify screen.
+        if (mounted) widget.onNeedsVerification(email);
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -96,7 +91,6 @@ class _RegisterScreenState extends State<RegisterScreen>
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    if (_sent) return _confirmation(colors);
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -180,7 +174,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 padding: const EdgeInsets.only(top: 12),
                 child: Center(
                   child: Text(
-                    "We'll email you a verification link.",
+                    "We'll email you a six-digit code.",
                     style: TextStyle(fontSize: 12, color: colors.textMuted),
                   ),
                 ),
@@ -204,45 +198,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _confirmation(AppColors colors) {
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Eyebrow('ALMOST THERE'),
-                const SizedBox(height: 10),
-                const Display('Check your inbox.', size: 30),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text(
-                    'We emailed a verification code to ${_email.text.trim()}. '
-                    'Verify your email, then log in to start taking notes.',
-                    style: TextStyle(
-                      fontSize: 15,
-                      height: 1.4,
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ),
-                PrimaryButton(
-                  label: 'Back to log in',
-                  onPressed: widget.onGoToLogin,
-                  margin: const EdgeInsets.only(top: 10),
-                ),
-              ],
-            ),
           ),
         ),
       ),

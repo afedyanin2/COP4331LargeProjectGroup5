@@ -1,8 +1,3 @@
-// main.dart — app entry point. Wires up ThemeController (light/dark/system,
-// persisted via SharedPreferences) and a lightweight screen switcher, since
-// the screens themselves use plain callbacks (onLoggedIn, onGoToRegister,
-// etc.) rather than named routes.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +7,7 @@ import 'screens/login_screen.dart';
 import 'screens/notes_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/verify_email_screen.dart';
 import 'theme/theme_controller.dart';
 
 const int splashMs = 1400;
@@ -104,7 +100,8 @@ class AuthFlow extends StatefulWidget {
 }
 
 class _AuthFlowState extends State<AuthFlow> {
-  String _view = 'login'; // 'login' | 'register' | 'forgot'
+  String _view = 'login'; // 'login' | 'register' | 'verify' | 'forgot'
+  String _pendingEmail = ''; // carried from register -> verify
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +109,17 @@ class _AuthFlowState extends State<AuthFlow> {
       case 'register':
         return RegisterScreen(
           onRegistered: widget.onAuthed,
+          onNeedsVerification: (email) => setState(() {
+            _pendingEmail = email;
+            _view = 'verify';
+          }),
           onGoToLogin: () => setState(() => _view = 'login'),
+        );
+      case 'verify':
+        return VerifyEmailScreen(
+          email: _pendingEmail,
+          onVerified: () => setState(() => _view = 'login'),
+          onBack: () => setState(() => _view = 'login'),
         );
       case 'forgot':
         return ForgotPasswordScreen(
