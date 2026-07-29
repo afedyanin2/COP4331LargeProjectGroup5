@@ -1,15 +1,88 @@
 import { useRef, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import CanvasWorkspace from '../components/CanvasWorkspace.jsx';
 import ShownCanvas from '../components/ShownCanvas.jsx';
 
 const DEFAULT_CATEGORY = 'Uncategorized';
+const LEGACY_NOTES_KEY = 'noterietyNotes';
 
-function getStoredNotes() {
+async function readJsonResponse(response) {
+  const responseText = await response.text();
+
+  if (!responseText) {
+    throw new Error(
+      `Server returned an empty response (${response.status}).`
+    );
+  }
+
   try {
-    const storedNotes = localStorage.getItem('noterietyNotes');
+    return JSON.parse(responseText);
+  } catch {
+    throw new Error(
+      `Server returned an invalid response (${response.status}).`
+    );
+  }
+}
+
+async function apiRequest(path, options = {}) {
+  const token = localStorage.getItem('noterietyToken');
+
+  if (!token) {
+    throw new Error(
+      'Your login session is missing. Please log in again.'
+    );
+  }
+
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      ...(options.body
+        ? { 'Content-Type': 'application/json' }
+        : {}),
+      ...options.headers,
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  const data = await readJsonResponse(response);
+
+  if (!response.ok || data.error) {
+    throw new Error(
+      data.error || `Request failed (${response.status}).`
+    );
+  }
+
+  return data;
+}
+
+function toTimestamp(value, fallback = Date.now()) {
+  if (!value) {
+    return fallback;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? fallback : timestamp;
+}
+
+function normalizeNote(note) {
+  const id = String(note?._id || note?.id || '');
+
+  return {
+    id,
+    title: String(note?.title || 'Untitled Note'),
+    content: String(note?.body ?? note?.content ?? ''),
+    category: String(note?.category || DEFAULT_CATEGORY),
+    tags: Array.isArray(note?.tags) ? note.tags : [],
+    pinned: Boolean(note?.isPinned ?? note?.pinned),
+    drawing: Array.isArray(note?.drawing) ? note.drawing : [],
+    createdAt: toTimestamp(note?.createdAt),
+    updatedAt: toTimestamp(note?.updatedAt)
+  };
+}
+
+function getLegacyStoredNotes() {
+  try {
+    const storedNotes = localStorage.getItem(LEGACY_NOTES_KEY);
     const parsedNotes = storedNotes ? JSON.parse(storedNotes) : [];
-    console.log("Loaded notes:", parsedNotes);
 
     if (!Array.isArray(parsedNotes)) {
       return [];
@@ -20,6 +93,7 @@ function getStoredNotes() {
       category: note.category || DEFAULT_CATEGORY,
       tags: Array.isArray(note.tags) ? note.tags : [],
       pinned: Boolean(note.pinned),
+      drawing: Array.isArray(note.drawing) ? note.drawing : [],
       createdAt: note.createdAt || note.id || Date.now(),
       updatedAt: note.updatedAt || note.id || Date.now()
     }));
@@ -29,17 +103,20 @@ function getStoredNotes() {
 }
 
 function NoteTakingPage() {
-  const [notes, setNotes] = useState(getStoredNotes);
+  const [notes, setNotes] = useState([]);
+  const [legacyNotes, setLegacyNotes] = useState(getLegacyStoredNotes);
+  const [isLoadingNotes, setIsLoadingNotes] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isImportingLegacy, setIsImportingLegacy] = useState(false);
+  const [notesError, setNotesError] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [activeView, setActiveView] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
   const [noteToDelete, setNoteToDelete] = useState(null);
-  const [editorMode, setEditorMode] = useState("");
-  const [isCanvas, setIsCanvas] = useState(false);
-  const [isNote, setIsNote] = useState(false);
+  const [editorMode, setEditorMode] = useState('text');
   const [mobileView, setMobileView] = useState('list');
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [drawing, setDrawing] = useState([]);
   const canvasWorkspaceRef = useRef(null);
@@ -52,8 +129,43 @@ function NoteTakingPage() {
   });
 
   useEffect(() => {
-    localStorage.setItem('noterietyNotes', JSON.stringify(notes));
-  }, [notes]);
+    let isMounted = true;
+
+    async function loadNotes() {
+      setNotesError('');
+      setIsLoadingNotes(true);
+
+      try {
+        const data = await apiRequest('/api/notes');
+
+        if (isMounted) {
+          setNotes(
+            Array.isArray(data.notes)
+              ? data.notes.map(normalizeNote)
+              : []
+          );
+        }
+      } catch (error) {
+        console.error('Load notes failed:', error);
+
+        if (isMounted) {
+          setNotesError(
+            error.message || 'Unable to load your notes.'
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingNotes(false);
+        }
+      }
+    }
+
+    loadNotes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     function closeMenu(event) {
@@ -109,7 +221,7 @@ function NoteTakingPage() {
           note.content.toLowerCase().includes(normalizedSearch) ||
           note.category.toLowerCase().includes(normalizedSearch) ||
           note.tags.some((tag) =>
-            tag.toLowerCase().includes(normalizedSearch)
+            String(tag).toLowerCase().includes(normalizedSearch)
           );
 
         if (!matchesSearch) {
@@ -142,6 +254,8 @@ function NoteTakingPage() {
       category: DEFAULT_CATEGORY,
       tags: ''
     });
+    setDrawing([]);
+    setEditorMode('text');
   }
 
   function handleFormChange(event) {
@@ -155,7 +269,6 @@ function NoteTakingPage() {
 
   function beginNewNote() {
     resetForm();
-    setDrawing([]);
     setSelectedNoteId(null);
     setIsCreating(true);
     setIsEditing(true);
@@ -197,17 +310,18 @@ function NoteTakingPage() {
     }
   }
 
-  function handleSaveNote(event) {
+  async function handleSaveNote(event) {
     event.preventDefault();
+    setNotesError('');
 
-    const currentDrawing = drawing;
-
-    if (!formData.title.trim() && !formData.content.trim() && currentDrawing.length === 0) 
-    {
+    if (
+      !formData.title.trim() &&
+      !formData.content.trim() &&
+      drawing.length === 0
+    ) {
       return;
     }
 
-    const currentTime = Date.now();
     const tags = [
       ...new Set(
         formData.tags
@@ -217,58 +331,84 @@ function NoteTakingPage() {
       )
     ];
 
-
-    const noteData = {
+    const payload = {
       title: formData.title.trim() || 'Untitled Note',
-      content: formData.content.trim(),
+      body: formData.content.trim(),
       category: formData.category.trim() || DEFAULT_CATEGORY,
       tags,
-      updatedAt: currentTime,
-      drawing: currentDrawing,
+      drawing
     };
 
-    if (isCreating) {
-      const newNote = {
-        id: currentTime,
-        ...noteData,
-        pinned: false,
-        createdAt: currentTime
-      };
+    setIsSaving(true);
 
-      setNotes((currentNotes) => [newNote, ...currentNotes]);
-      setSelectedNoteId(newNote.id);
-    } else {
-      setNotes((currentNotes) =>
-        currentNotes.map((note) =>
-          note.id === selectedNoteId
-            ? {
-                ...note,
-                ...noteData
-              }
-            : note
-        )
+    try {
+      const data = await apiRequest(
+        isCreating
+          ? '/api/notes'
+          : `/api/notes/${encodeURIComponent(selectedNoteId)}`,
+        {
+          method: isCreating ? 'POST' : 'PUT',
+          body: JSON.stringify(payload)
+        }
       );
-    }
 
-    resetForm();
-    setIsCreating(false);
-    setIsEditing(false);
+      const savedNote = normalizeNote(data.note);
+
+      if (isCreating) {
+        setNotes((currentNotes) => [savedNote, ...currentNotes]);
+      } else {
+        setNotes((currentNotes) =>
+          currentNotes.map((note) =>
+            note.id === selectedNoteId ? savedNote : note
+          )
+        );
+      }
+
+      setSelectedNoteId(savedNote.id);
+      resetForm();
+      setIsCreating(false);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Save note failed:', error);
+      setNotesError(error.message || 'Unable to save the note.');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  function togglePin(noteId) {
-    setNotes((currentNotes) =>
-      currentNotes.map((note) =>
-        note.id === noteId
-          ? {
-              ...note,
-              pinned: !note.pinned,
-              updatedAt: Date.now()
-            }
-          : note
-      )
-    );
+  async function togglePin(noteId) {
+    const note = notes.find((item) => item.id === noteId);
 
-    setOpenMenuId(null);
+    if (!note) {
+      return;
+    }
+
+    setNotesError('');
+
+    try {
+      const data = await apiRequest(
+        `/api/notes/${encodeURIComponent(noteId)}/pin`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({
+            isPinned: !note.pinned
+          })
+        }
+      );
+
+      const updatedNote = normalizeNote(data.note);
+
+      setNotes((currentNotes) =>
+        currentNotes.map((currentNote) =>
+          currentNote.id === noteId ? updatedNote : currentNote
+        )
+      );
+    } catch (error) {
+      console.error('Pin note failed:', error);
+      setNotesError(error.message || 'Unable to update the note.');
+    } finally {
+      setOpenMenuId(null);
+    }
   }
 
   function requestDelete(note) {
@@ -276,27 +416,82 @@ function NoteTakingPage() {
     setOpenMenuId(null);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!noteToDelete) {
       return;
     }
 
-    setNotes((currentNotes) =>
-      currentNotes.filter((note) => note.id !== noteToDelete.id)
-    );
+    setNotesError('');
 
-    if (selectedNoteId === noteToDelete.id) {
-      setSelectedNoteId(null);
-      setIsEditing(false);
-      setIsCreating(false);
-      setMobileView('list');
+    try {
+      await apiRequest(
+        `/api/notes/${encodeURIComponent(noteToDelete.id)}`,
+        {
+          method: 'DELETE'
+        }
+      );
+
+      setNotes((currentNotes) =>
+        currentNotes.filter((note) => note.id !== noteToDelete.id)
+      );
+
+      if (selectedNoteId === noteToDelete.id) {
+        setSelectedNoteId(null);
+        setIsEditing(false);
+        setIsCreating(false);
+        setMobileView('list');
+      }
+
+      setNoteToDelete(null);
+    } catch (error) {
+      console.error('Delete note failed:', error);
+      setNotesError(error.message || 'Unable to delete the note.');
+    }
+  }
+
+  async function importLegacyNotes() {
+    if (legacyNotes.length === 0) {
+      return;
     }
 
-    setNoteToDelete(null);
+    setNotesError('');
+    setIsImportingLegacy(true);
+
+    try {
+      const data = await apiRequest('/api/notes/import', {
+        method: 'POST',
+        body: JSON.stringify({
+          notes: legacyNotes.map((note) => ({
+            title: note.title || 'Untitled Note',
+            body: note.content || '',
+            category: note.category || DEFAULT_CATEGORY,
+            tags: note.tags || [],
+            drawing: note.drawing || [],
+            pinned: Boolean(note.pinned),
+            createdAt: note.createdAt,
+            updatedAt: note.updatedAt
+          }))
+        })
+      });
+
+      const importedNotes = Array.isArray(data.notes)
+        ? data.notes.map(normalizeNote)
+        : [];
+
+      setNotes((currentNotes) => [...importedNotes, ...currentNotes]);
+      localStorage.removeItem(LEGACY_NOTES_KEY);
+      setLegacyNotes([]);
+    } catch (error) {
+      console.error('Import browser notes failed:', error);
+      setNotesError(
+        error.message || 'Unable to import the browser notes.'
+      );
+    } finally {
+      setIsImportingLegacy(false);
+    }
   }
 
   function downloadNote(note) {
-    console.log("download note reached", note);
     const fileContents = [
       note.title,
       '',
@@ -332,39 +527,32 @@ function NoteTakingPage() {
     setOpenMenuId(null);
   }
 
-  function downloadCanvas(note)
-  {
-    if (note.drawing.length === 0) return;
-    console.log("downloadCanvas reached", note.drawing);
+  function downloadCanvas(note) {
+    if (!Array.isArray(note.drawing) || note.drawing.length === 0) {
+      return;
+    }
 
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     canvas.width = 800;
     canvas.height = 500;
 
-    const ctx = canvas.getContext("2d")
+    const context = canvas.getContext('2d');
+    context.fillStyle = 'white';
+    context.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    for (const stroke of note.drawing)
-      {
-          for (const point of stroke)
-          {
-              ctx.beginPath();
-              ctx.arc(point.x, point.y, 5, 0, Math.PI*2);
-              ctx.fillStyle = "green";
-              ctx.fill();
-          }
+    for (const stroke of note.drawing) {
+      for (const point of stroke) {
+        context.beginPath();
+        context.arc(point.x, point.y, 5, 0, Math.PI * 2);
+        context.fillStyle = 'green';
+        context.fill();
       }
+    }
 
-    const url = canvas.toDataURL("image/png");
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${note.title || "canvas"}.png`;
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `${note.title || 'canvas'}.png`;
     link.click();
-    downloadLink.href = fileUrl;
-    downloadLink.download = `${note.title || "canvas"}.txt`;
   }
 
   function selectView(view) {
@@ -400,8 +588,44 @@ function NoteTakingPage() {
     return 'All Notes';
   }
 
+  if (isLoadingNotes) {
+    return (
+      <section className="page centered-page">
+        <h1>My Notes</h1>
+        <p>Loading your notes...</p>
+      </section>
+    );
+  }
+
   return (
     <section className="notes-workspace-page">
+      {notesError && (
+        <div className="content-section">
+          <p className="error-message">{notesError}</p>
+        </div>
+      )}
+
+      {legacyNotes.length > 0 && (
+        <div className="content-section">
+          <h2>Browser notes found</h2>
+          <p>
+            These are notes from the old browser-only storage. Log in to the
+            account that owns them, then import them once.
+          </p>
+          <button
+            type="button"
+            onClick={importLegacyNotes}
+            disabled={isImportingLegacy}
+          >
+            {isImportingLegacy
+              ? 'Importing...'
+              : `Import ${legacyNotes.length} browser note${
+                  legacyNotes.length === 1 ? '' : 's'
+                } into this account`}
+          </button>
+        </div>
+      )}
+
       <div
         className={`notes-workspace ${
           mobileView === 'editor' ? 'show-mobile-editor' : ''
