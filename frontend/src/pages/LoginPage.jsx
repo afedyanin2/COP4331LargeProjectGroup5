@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import {
+  Link,
+  Navigate,
+  useNavigate,
+} from 'react-router-dom';
 
 function LoginPage({ isLoggedIn, onLogin }) {
   const navigate = useNavigate();
@@ -10,7 +14,11 @@ function LoginPage({ isLoggedIn, onLogin }) {
   });
 
   const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  const [showPassword, setShowPassword] =
+    useState(false);
 
   if (isLoggedIn) {
     return <Navigate to="/" replace />;
@@ -114,8 +122,15 @@ function LoginPage({ isLoggedIn, onLogin }) {
     <section className="page form-page">
       <h1>Log In</h1>
 
-      <form className="basic-form" onSubmit={handleSubmit}>
-        {error && <p className="error-message">{error}</p>}
+      <form
+        className="basic-form"
+        onSubmit={handleSubmit}
+      >
+        {error && (
+          <p className="error-message">
+            {error}
+          </p>
+        )}
 
         <label htmlFor="login-username">
           Username
@@ -131,15 +146,50 @@ function LoginPage({ isLoggedIn, onLogin }) {
           required
         />
 
-        <label htmlFor="login-password">Password</label>
+        <label htmlFor="login-password">
+          Password
+        </label>
+
         <input
           id="login-password"
           name="password"
-          type="password"
+          type={
+            showPassword
+              ? 'text'
+              : 'password'
+          }
           value={formData.password}
           onChange={handleChange}
           autoComplete="current-password"
+          required
         />
+
+        <label
+          htmlFor="login-show-password"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            id="login-show-password"
+            type="checkbox"
+            checked={showPassword}
+            onChange={(event) =>
+              setShowPassword(
+                event.target.checked
+              )
+            }
+            style={{
+              width: 'auto',
+              margin: 0,
+            }}
+          />
+
+          Show password
+        </label>
 
         <button
           type="submit"
@@ -158,7 +208,10 @@ function LoginPage({ isLoggedIn, onLogin }) {
       </p>
 
       <p>
-        Don't have an account? <Link to="/signup">Sign up</Link>
+        Don't have an account?{' '}
+        <Link to="/signup">
+          Sign up
+        </Link>
       </p>
     </section>
   );

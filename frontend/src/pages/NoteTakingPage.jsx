@@ -84,7 +84,6 @@ function normalizeNote(note) {
     title: String(note?.title || 'Untitled Note'),
     content: bodyDrawing ? '' : body,
     category: String(note?.category || DEFAULT_CATEGORY),
-    tags: Array.isArray(note?.tags) ? note.tags : [],
     pinned: Boolean(note?.isPinned ?? note?.pinned),
     drawing,
     isCanvas: Boolean(bodyDrawing) || drawing.length > 0,
@@ -105,7 +104,6 @@ function getLegacyStoredNotes() {
     return parsedNotes.map((note) => ({
       ...note,
       category: note.category || DEFAULT_CATEGORY,
-      tags: Array.isArray(note.tags) ? note.tags : [],
       pinned: Boolean(note.pinned),
       drawing: Array.isArray(note.drawing) ? note.drawing : [],
       createdAt: note.createdAt || note.id || Date.now(),
@@ -138,8 +136,7 @@ function NoteTakingPage() {
   const [formData, setFormData] = useState({
     title: '',
     content: '',
-    category: DEFAULT_CATEGORY,
-    tags: ''
+    category: DEFAULT_CATEGORY
   });
 
   // Load this user's notes from the server once, on mount.
@@ -234,10 +231,7 @@ function NoteTakingPage() {
           !normalizedSearch ||
           note.title.toLowerCase().includes(normalizedSearch) ||
           note.content.toLowerCase().includes(normalizedSearch) ||
-          note.category.toLowerCase().includes(normalizedSearch) ||
-          note.tags.some((tag) =>
-            String(tag).toLowerCase().includes(normalizedSearch)
-          );
+          note.category.toLowerCase().includes(normalizedSearch);
 
         if (!matchesSearch) {
           return false;
@@ -266,8 +260,7 @@ function NoteTakingPage() {
     setFormData({
       title: '',
       content: '',
-      category: DEFAULT_CATEGORY,
-      tags: ''
+      category: DEFAULT_CATEGORY
     });
     setDrawing([]);
     setEditorMode('text');
@@ -306,8 +299,7 @@ function NoteTakingPage() {
     setFormData({
       title: note.title,
       content: note.content,
-      category: note.category,
-      tags: note.tags.join(', ')
+      category: note.category
     });
     setIsCreating(false);
     setIsEditing(true);
@@ -338,15 +330,6 @@ function NoteTakingPage() {
       return;
     }
 
-    const tags = [
-      ...new Set(
-        formData.tags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean)
-      )
-    ];
-
     const normalizedDrawing = normalizeDrawing(drawing);
     const savingCanvas = editorMode === 'canvas';
 
@@ -356,7 +339,6 @@ function NoteTakingPage() {
         ? encodeCanvasBody(normalizedDrawing)
         : formData.content.trim(),
       category: formData.category.trim() || DEFAULT_CATEGORY,
-      tags,
       drawing: savingCanvas ? normalizedDrawing : []
     };
 
@@ -486,7 +468,6 @@ function NoteTakingPage() {
             title: note.title || 'Untitled Note',
             body: note.content || '',
             category: note.category || DEFAULT_CATEGORY,
-            tags: note.tags || [],
             drawing: note.drawing || [],
             pinned: Boolean(note.pinned),
             createdAt: note.createdAt,
@@ -517,9 +498,6 @@ function NoteTakingPage() {
       note.title,
       '',
       `Category: ${note.category}`,
-      note.tags.length > 0
-        ? `Tags: ${note.tags.join(', ')}`
-        : 'Tags: None',
       '',
       note.content
     ].join('\n');
@@ -733,7 +711,7 @@ function NoteTakingPage() {
               type="search"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search notes, categories, or tags"
+              placeholder="Search notes or categories"
               aria-label="Search notes"
             />
 
@@ -885,13 +863,6 @@ function NoteTakingPage() {
                     </time>
                   </div>
 
-                  {note.tags.length > 0 && (
-                    <div className="workspace-note-tags">
-                      {note.tags.slice(0, 3).map((tag) => (
-                        <span key={tag}>{tag}</span>
-                      ))}
-                    </div>
-                  )}
                 </article>
               ))
             )}
@@ -963,17 +934,6 @@ function NoteTakingPage() {
                     </datalist>
                   </div>
 
-                  <div>
-                    <label htmlFor="workspace-tags">Tags</label>
-                    <input
-                      id="workspace-tags"
-                      name="tags"
-                      type="text"
-                      value={formData.tags}
-                      onChange={handleFormChange}
-                      placeholder="Exam, Work, Important"
-                    />
-                  </div>
                 </div>
                 
                 <div className="edit-mode-buttons">
@@ -1116,9 +1076,6 @@ function NoteTakingPage() {
                   {selectedNote.category}
                 </button>
 
-                {selectedNote.tags.map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
               </div>
               
               <div
