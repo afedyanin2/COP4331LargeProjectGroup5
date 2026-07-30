@@ -45,6 +45,12 @@ function SettingsPage({
    *
    * Username and email are loaded from MongoDB through /api/me.
    */
+  const [firstName, setFirstName] =
+    useState('');
+
+  const [lastName, setLastName] =
+    useState('');
+
   const [username, setUsername] =
     useState('');
 
@@ -142,6 +148,14 @@ function SettingsPage({
           return;
         }
 
+        setFirstName(
+          data.firstName || ''
+        );
+
+        setLastName(
+          data.lastName || ''
+        );
+
         setUsername(
           data.username || ''
         );
@@ -217,8 +231,28 @@ function SettingsPage({
     setMessage('');
     setError('');
 
+    const normalizedFirstName =
+      firstName.trim();
+
+    const normalizedLastName =
+      lastName.trim();
+
     const normalizedUsername =
       username.trim();
+
+    if (!normalizedFirstName) {
+      setError(
+        'First name cannot be empty.'
+      );
+      return;
+    }
+
+    if (!normalizedLastName) {
+      setError(
+        'Last name cannot be empty.'
+      );
+      return;
+    }
 
     if (!normalizedUsername) {
       setError(
@@ -256,6 +290,12 @@ function SettingsPage({
           },
 
           body: JSON.stringify({
+            firstName:
+              normalizedFirstName,
+
+            lastName:
+              normalizedLastName,
+
             username:
               normalizedUsername,
           }),
@@ -276,6 +316,14 @@ function SettingsPage({
             'Unable to update username.'
         );
       }
+
+      setFirstName(
+        data.firstName || ''
+      );
+
+      setLastName(
+        data.lastName || ''
+      );
 
       setUsername(data.username);
 
@@ -303,7 +351,7 @@ function SettingsPage({
       }
 
       setMessage(
-        'Your username was updated.'
+        'Your profile was updated.'
       );
     } catch (requestError) {
       console.error(
@@ -446,6 +494,40 @@ function SettingsPage({
           </p>
         )}
 
+        <label htmlFor="settings-first-name">
+          First Name
+        </label>
+
+        <input
+          id="settings-first-name"
+          type="text"
+          value={firstName}
+          onChange={(event) =>
+            setFirstName(
+              event.target.value
+            )
+          }
+          autoComplete="given-name"
+          required
+        />
+
+        <label htmlFor="settings-last-name">
+          Last Name
+        </label>
+
+        <input
+          id="settings-last-name"
+          type="text"
+          value={lastName}
+          onChange={(event) =>
+            setLastName(
+              event.target.value
+            )
+          }
+          autoComplete="family-name"
+          required
+        />
+
         <label htmlFor="settings-username">
           Username
         </label>
@@ -480,7 +562,7 @@ function SettingsPage({
         >
           {isSaving
             ? 'Saving...'
-            : 'Save Username'}
+            : 'Save Profile'}
         </button>
       </form>
 
