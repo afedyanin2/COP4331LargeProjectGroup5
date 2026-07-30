@@ -22,12 +22,6 @@ function validatePassword(password) {
     );
   }
 
-  if (!/[a-z]/.test(password)) {
-    passwordErrors.push(
-      'Password must contain at least one lowercase letter.'
-    );
-  }
-
   if (!/[^A-Za-z0-9\s]/.test(password)) {
     passwordErrors.push(
       'Password must contain at least one special character.'
