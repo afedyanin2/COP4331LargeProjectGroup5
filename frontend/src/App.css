@@ -1456,11 +1456,24 @@ button:hover {
 }
 
 .canvas {
-  flex: 1;
+  display: block;
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  aspect-ratio: 8 / 5;
   border: 1px solid var(--site-border);
   border-radius: 8px;
-  width: 800px;
-  height: 500px;
+  background: #ffffff;
+  touch-action: none;
+}
+
+.shown-canvas {
+  margin-top: 16px;
+}
+
+.canvas-buttons button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .basic-form textarea {
@@ -1874,4 +1887,118 @@ button:disabled:hover {
     max-width: none;
     letter-spacing: 0.25em;
   }
+}
+
+/* Flutter-compatible canvas editor */
+.canvas-workspace {
+  width: 100%;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  aspect-ratio: 8 / 5;
+  border: 1px solid var(--workspace-border);
+  border-radius: 8px;
+  background: #ffffff;
+  touch-action: none;
+}
+
+.shown-canvas {
+  margin-top: 16px;
+}
+
+.canvas-toolbar {
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.canvas-tool-group,
+.canvas-width-picker,
+.canvas-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.canvas-toolbar button,
+.canvas-buttons button {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 8px;
+  background: var(--workspace-surface);
+  color: var(--workspace-text);
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.canvas-toolbar button.is-active {
+  border-color: var(--workspace-primary);
+  background: var(--workspace-primary);
+  color: #ffffff;
+}
+
+.canvas-color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.canvas-color-picker button {
+  width: 31px;
+  min-width: 31px;
+  height: 31px;
+  min-height: 31px;
+  padding: 3px;
+  border: 1px solid var(--workspace-border);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      var(--canvas-swatch) 0 58%,
+      transparent 60%
+    );
+}
+
+.canvas-color-picker button.is-active {
+  border: 3px solid var(--workspace-primary);
+  background:
+    radial-gradient(
+      circle,
+      var(--canvas-swatch) 0 54%,
+      transparent 56%
+    );
+}
+
+.canvas-eraser-size {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--workspace-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.canvas-eraser-size input {
+  width: 120px;
+  margin: 0;
+}
+
+.canvas-buttons {
+  margin-top: 10px;
+}
+
+.canvas-buttons button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.canvas-clear-button:not(:disabled) {
+  color: var(--workspace-danger);
 }
