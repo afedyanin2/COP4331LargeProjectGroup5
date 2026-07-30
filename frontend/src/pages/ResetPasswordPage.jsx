@@ -5,6 +5,38 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 
+const MIN_PASSWORD_LENGTH = 8;
+
+function validatePassword(password) {
+  const passwordErrors = [];
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    passwordErrors.push(
+      `Password must contain at least ${MIN_PASSWORD_LENGTH} characters.`
+    );
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    passwordErrors.push(
+      'Password must contain at least one uppercase letter.'
+    );
+  }
+
+  if (!/[^A-Za-z0-9\s]/.test(password)) {
+    passwordErrors.push(
+      'Password must contain at least one special character.'
+    );
+  }
+
+  if (/\s/.test(password)) {
+    passwordErrors.push(
+      'Password cannot contain spaces.'
+    );
+  }
+
+  return passwordErrors;
+}
+
 /*
  * Safely reads JSON from the backend.
  */
@@ -28,11 +60,6 @@ async function readJsonResponse(response) {
 }
 
 function ResetPasswordPage() {
-  /*
-   * Reads the token from a URL such as:
-   *
-   * /reset-password?token=abc123
-   */
   const [searchParams] =
     useSearchParams();
 
@@ -47,8 +74,13 @@ function ResetPasswordPage() {
     setConfirmPassword,
   ] = useState('');
 
-  const [error, setError] =
-    useState('');
+  const [
+    showPasswords,
+    setShowPasswords,
+  ] = useState(false);
+
+  const [errors, setErrors] =
+    useState([]);
 
   const [message, setMessage] =
     useState('');
@@ -56,53 +88,59 @@ function ResetPasswordPage() {
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
-  const [passwordChanged, setPasswordChanged] =
-    useState(false);
+  const [
+    passwordChanged,
+    setPasswordChanged,
+  ] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
 
-    setError('');
+    const validationErrors = [];
+
     setMessage('');
 
     if (!token) {
-      setError(
+      validationErrors.push(
         'This password reset link is missing its reset token.'
       );
-      return;
     }
 
-    if (!newPassword || !confirmPassword) {
-      setError(
-        'Please complete both password fields.'
+    if (!newPassword) {
+      validationErrors.push(
+        'Please enter a new password.'
       );
-      return;
-    }
-
-    /*
-     * Your backend requires at least eight characters.
-     */
-    if (newPassword.length < 8) {
-      setError(
-        'Password must contain at least 8 characters.'
+    } else {
+      validationErrors.push(
+        ...validatePassword(newPassword)
       );
-      return;
     }
 
-    if (newPassword !== confirmPassword) {
-      setError(
+    if (!confirmPassword) {
+      validationErrors.push(
+        'Please confirm your new password.'
+      );
+    }
+
+    if (
+      newPassword &&
+      confirmPassword &&
+      newPassword !== confirmPassword
+    ) {
+      validationErrors.push(
         'The passwords do not match.'
       );
+    }
+
+    if (validationErrors.length > 0) {
+      setErrors(validationErrors);
       return;
     }
 
+    setErrors([]);
     setIsSubmitting(true);
 
     try {
-      /*
-       * Send the token from the email link
-       * together with the new password.
-       */
       const response = await fetch(
         '/api/reset-password',
         {
@@ -130,12 +168,6 @@ function ResetPasswordPage() {
         );
       }
 
-      /*
-       * The backend has now:
-       * 1. Hashed the new password.
-       * 2. Updated MongoDB.
-       * 3. Deleted the used reset token.
-       */
       setPasswordChanged(true);
 
       setMessage(
@@ -144,24 +176,22 @@ function ResetPasswordPage() {
 
       setNewPassword('');
       setConfirmPassword('');
+      setShowPasswords(false);
     } catch (requestError) {
       console.error(
         'Password reset failed:',
         requestError
       );
 
-      setError(
+      setErrors([
         requestError.message ||
-          'Unable to reset your password.'
-      );
+          'Unable to reset your password.',
+      ]);
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  /*
-   * Displayed after the password has been changed.
-   */
   if (passwordChanged) {
     return (
       <section className="page centered-page">
@@ -186,10 +216,6 @@ function ResetPasswordPage() {
     );
   }
 
-  /*
-   * Displayed when someone opens the page
-   * without a reset token.
-   */
   if (!token) {
     return (
       <section className="page centered-page">
@@ -221,11 +247,22 @@ function ResetPasswordPage() {
       <form
         className="basic-form"
         onSubmit={handleSubmit}
+        noValidate
       >
-        {error && (
-          <p className="error-message">
-            {error}
-          </p>
+        {errors.length > 0 && (
+          <div className="error-message">
+            <strong>
+              Please correct the following:
+            </strong>
+
+            <ul>
+              {errors.map((error, index) => (
+                <li key={`${error}-${index}`}>
+                  {error}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <label htmlFor="new-password">
@@ -235,7 +272,11 @@ function ResetPasswordPage() {
         <input
           id="new-password"
           name="newPassword"
-          type="password"
+          type={
+            showPasswords
+              ? 'text'
+              : 'password'
+          }
           value={newPassword}
           onChange={(event) =>
             setNewPassword(
@@ -243,7 +284,6 @@ function ResetPasswordPage() {
             )
           }
           autoComplete="new-password"
-          minLength={8}
           required
         />
 
@@ -254,7 +294,11 @@ function ResetPasswordPage() {
         <input
           id="confirm-new-password"
           name="confirmPassword"
-          type="password"
+          type={
+            showPasswords
+              ? 'text'
+              : 'password'
+          }
           value={confirmPassword}
           onChange={(event) =>
             setConfirmPassword(
@@ -262,9 +306,35 @@ function ResetPasswordPage() {
             )
           }
           autoComplete="new-password"
-          minLength={8}
           required
         />
+
+        <label
+          htmlFor="reset-show-passwords"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            cursor: 'pointer',
+          }}
+        >
+          <input
+            id="reset-show-passwords"
+            type="checkbox"
+            checked={showPasswords}
+            onChange={(event) =>
+              setShowPasswords(
+                event.target.checked
+              )
+            }
+            style={{
+              width: 'auto',
+              margin: 0,
+            }}
+          />
+
+          Show passwords
+        </label>
 
         <button
           type="submit"

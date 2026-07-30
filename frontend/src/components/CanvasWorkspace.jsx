@@ -95,12 +95,7 @@ const CanvasWorkspace = forwardRef(function CanvasWorkspace(
   }
 
   function clearCanvas() {
-    if (
-      drawing.length > 0 &&
-      window.confirm(
-        'Clear canvas? Every stroke will be removed.'
-      )
-    ) {
+    if (drawing.length > 0) {
       commit([]);
     }
   }

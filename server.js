@@ -202,6 +202,32 @@ function normalizeUsername(username) {
   return String(username || '').trim();
 }
 
+function validatePassword(password) {
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return (
+      `Password must contain at least ${MIN_PASSWORD_LENGTH} characters.`
+    );
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return (
+      'Password must contain at least one uppercase letter.'
+    );
+  }
+
+  if (!/[^A-Za-z0-9\s]/.test(password)) {
+    return (
+      'Password must contain at least one special character.'
+    );
+  }
+
+  if (/\s/.test(password)) {
+    return 'Password cannot contain spaces.';
+  }
+
+  return '';
+}
+
 function isValidObjectId(id) {
   return (
     ObjectId.isValid(id) &&
@@ -597,16 +623,14 @@ app.post(
       });
     }
 
-    if (
-      password.length <
-      MIN_PASSWORD_LENGTH
-    ) {
+    const passwordError = validatePassword(password);
+
+    if (passwordError) {
       return res.status(400).json({
         id: -1,
         firstName: '',
         lastName: '',
-        error:
-          `Password must contain at least ${MIN_PASSWORD_LENGTH} characters`,
+        error: passwordError,
       });
     }
 
@@ -1333,13 +1357,12 @@ app.post(
       });
     }
 
-    if (
-      newPassword.length <
-      MIN_PASSWORD_LENGTH
-    ) {
+    const passwordError =
+      validatePassword(newPassword);
+
+    if (passwordError) {
       return res.status(200).json({
-        error:
-          `Password must contain at least ${MIN_PASSWORD_LENGTH} characters`,
+        error: passwordError,
       });
     }
 
