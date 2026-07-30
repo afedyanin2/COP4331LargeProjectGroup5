@@ -474,47 +474,6 @@ function SettingsPage({
           readOnly
         />
 
-        <div className="email-verification-setting">
-          <p className="settings-detail">
-            Email status:{' '}
-
-            <strong>
-              {emailVerified
-                ? 'Verified'
-                : 'Not verified'}
-            </strong>
-          </p>
-
-          {verificationError && (
-            <p className="error-message">
-              {verificationError}
-            </p>
-          )}
-
-          {verificationMessage && (
-            <p className="success-message">
-              {verificationMessage}
-            </p>
-          )}
-
-          {!emailVerified && (
-            <button
-              type="button"
-              onClick={
-                handleSendVerificationLink
-              }
-              disabled={
-                isSendingVerification ||
-                !email
-              }
-            >
-              {isSendingVerification
-                ? 'Sending Link...'
-                : 'Send Verification Link'}
-            </button>
-          )}
-        </div>
-
         <button
           type="submit"
           disabled={isSaving}
