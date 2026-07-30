@@ -381,4 +381,3 @@ function SignupPage({ isLoggedIn }) {
 }
 
 export default SignupPage;
-export default SignupPage;
