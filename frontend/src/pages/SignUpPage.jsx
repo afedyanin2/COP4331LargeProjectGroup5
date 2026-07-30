@@ -41,6 +41,8 @@ function SignupPage({ isLoggedIn }) {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
     name: '',
     email: '',
     password: '',
@@ -74,11 +76,25 @@ function SignupPage({ isLoggedIn }) {
     const validationErrors = [];
 
     const {
+      firstName,
+      lastName,
       name,
       email,
       password,
       confirmPassword,
     } = formData;
+
+    if (!firstName.trim()) {
+      validationErrors.push(
+        'Please enter your first name.'
+      );
+    }
+
+    if (!lastName.trim()) {
+      validationErrors.push(
+        'Please enter your last name.'
+      );
+    }
 
     if (!name.trim()) {
       validationErrors.push(
@@ -140,8 +156,8 @@ function SignupPage({ isLoggedIn }) {
           body: JSON.stringify({
             username: name.trim(),
             password,
-            firstName: '',
-            lastName: '',
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
             email: email
               .trim()
               .toLowerCase(),
@@ -222,6 +238,34 @@ function SignupPage({ isLoggedIn }) {
             </ul>
           </div>
         )}
+
+        <label htmlFor="signup-first-name">
+          First Name
+        </label>
+
+        <input
+          id="signup-first-name"
+          name="firstName"
+          type="text"
+          value={formData.firstName}
+          onChange={handleChange}
+          autoComplete="given-name"
+          required
+        />
+
+        <label htmlFor="signup-last-name">
+          Last Name
+        </label>
+
+        <input
+          id="signup-last-name"
+          name="lastName"
+          type="text"
+          value={formData.lastName}
+          onChange={handleChange}
+          autoComplete="family-name"
+          required
+        />
 
         <label htmlFor="signup-name">
           Username
@@ -336,4 +380,5 @@ function SignupPage({ isLoggedIn }) {
   );
 }
 
+export default SignupPage;
 export default SignupPage;
